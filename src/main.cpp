@@ -1,10 +1,24 @@
+#include "controller/BattleshipEngine.hpp"
+#include "view/GraphicalView.hpp"
 #include <iostream>
 
 int main() {
-    std::cout << "Booting Battleship Engine..." << std::endl;
+    std::cout << "Starting Battleship GUI..." << std::endl;
 
-    std::cout << "Welcome to Battleship!" << std::endl;
+    BattleshipEngine engine(OpponentType::LocalAI);
+    GraphicalView view(engine);
 
-    std::cout << "Goodbye!" << std::endl;
+    view.init();
+
+    while (!view.shouldClose()) {
+        // If it's the bot's turn, trigger its move
+        if (engine.getSnapshot().state == MatchState::OpponentTurn) {
+            engine.processAITurn();
+        }
+
+        view.render();
+    }
+
+    view.close();
     return 0;
 }
