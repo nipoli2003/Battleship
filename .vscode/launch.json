@@ -1,0 +1,14 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug Battleship",
+      "type": "lldb",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/battleship",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "CMake Build"
+    }
+  ]
+}
