@@ -1,6 +1,37 @@
 #include <gtest/gtest.h>
 #include "model/Board.hpp"
 #include "model/Ship.hpp"
+#include "controller/BattleshipEngine.hpp"
+
+TEST(EngineTest, TurnProgression) {
+    BattleshipEngine engine(OpponentType::LocalAI);
+    EXPECT_EQ(engine.getSnapshot().state, MatchState::PlayerTurn);
+
+    // Fire at (0, 0)
+    bool shotFired = engine.humanFire({0, 0});
+    EXPECT_TRUE(shotFired);
+    EXPECT_EQ(engine.getSnapshot().state, MatchState::OpponentTurn);
+
+    // Let AI take its turn
+    engine.processAITurn();
+    EXPECT_EQ(engine.getSnapshot().state, MatchState::PlayerTurn);
+}
+
+TEST(AITest, RandomShipPlacementValid) {
+    Board board;
+    BattleshipAI::placeShipsRandomly(board);
+
+    // Count occupied cells (Carrier=5 + Battleship=4 + Cruiser=3 + Sub=3 + Destroyer=2 = 17)
+    int occupiedCount = 0;
+    for (int y = 0; y < Board::SIZE; ++y) {
+        for (int x = 0; x < Board::SIZE; ++x) {
+            if (board.getCell(x, y) == CellState::ShipPresent) {
+                occupiedCount++;
+            }
+        }
+    }
+    EXPECT_EQ(occupiedCount, 17);
+}
 
 TEST(BoardTest, PlaceShipWithinBounds) {
     Board board;
