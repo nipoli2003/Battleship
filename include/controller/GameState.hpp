@@ -18,8 +18,6 @@ enum class OpponentType {
 
 struct GameSnapshot {
     MatchState state{MatchState::PlacementPhase};
-    std::string statusMessage{"Deploy your ships to begin!"};
+    std::string statusMessage{"Place your Carrier (Length: 5). Press [R] to rotate."};
     int turnNumber{0};
-    int humanHitsRemaining{17};    // Total ship cells (5+4+3+3+2)
-    int opponentHitsRemaining{17};
 };

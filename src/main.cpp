@@ -1,5 +1,6 @@
 #include "controller/BattleshipEngine.hpp"
 #include "view/GraphicalView.hpp"
+#include "raylib.h"
 #include <iostream>
 
 int main() {
@@ -11,11 +12,8 @@ int main() {
     view.init();
 
     while (!view.shouldClose()) {
-        // If it's the bot's turn, trigger its move
-        if (engine.getSnapshot().state == MatchState::OpponentTurn) {
-            engine.processAITurn();
-        }
-
+        float dt = GetFrameTime();
+        engine.update(dt);
         view.render();
     }
 

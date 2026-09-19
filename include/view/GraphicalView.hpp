@@ -18,10 +18,15 @@ public:
     void close() override;
 
 private:
+    void handleFullscreenToggle();
+
+    // scene renderers and handlers
     void renderMainMenu();
     void renderLobbyWait();
+    void renderPlacement();
     void renderGame();
 
+    // drawing helpers
     void drawButton(Rectangle bounds, const char* text, bool hovered);
     void drawGrid(int startX, int startY, const Board& board, bool hideShips, bool isEnemy);
     void handleBoardClicks(int enemyStartX, int enemyStartY);
@@ -29,6 +34,9 @@ private:
     BattleshipEngine& m_engine;
     AppScene m_currentScene{AppScene::MainMenu};
     bool m_shouldExit{false};
+
+    // Placement state
+    Orientation m_placementOrientation{Orientation::Horizontal};
 
     int m_windowedWidth{1200};
     int m_windowedHeight{700};

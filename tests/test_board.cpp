@@ -3,36 +3,6 @@
 #include "model/Ship.hpp"
 #include "controller/BattleshipEngine.hpp"
 
-TEST(EngineTest, TurnProgression) {
-    BattleshipEngine engine(OpponentType::LocalAI);
-    EXPECT_EQ(engine.getSnapshot().state, MatchState::PlayerTurn);
-
-    // Fire at (0, 0)
-    bool shotFired = engine.humanFire({0, 0});
-    EXPECT_TRUE(shotFired);
-    EXPECT_EQ(engine.getSnapshot().state, MatchState::OpponentTurn);
-
-    // Let AI take its turn
-    engine.processAITurn();
-    EXPECT_EQ(engine.getSnapshot().state, MatchState::PlayerTurn);
-}
-
-TEST(AITest, RandomShipPlacementValid) {
-    Board board;
-    BattleshipAI::placeShipsRandomly(board);
-
-    // Count occupied cells (Carrier=5 + Battleship=4 + Cruiser=3 + Sub=3 + Destroyer=2 = 17)
-    int occupiedCount = 0;
-    for (int y = 0; y < Board::SIZE; ++y) {
-        for (int x = 0; x < Board::SIZE; ++x) {
-            if (board.getCell(x, y) == CellState::ShipPresent) {
-                occupiedCount++;
-            }
-        }
-    }
-    EXPECT_EQ(occupiedCount, 17);
-}
-
 TEST(BoardTest, PlaceShipWithinBounds) {
     Board board;
     auto destroyer = std::make_shared<Ship>(ShipType::Destroyer, Orientation::Horizontal);
@@ -47,7 +17,6 @@ TEST(BoardTest, CannotPlaceShipOutOfBounds) {
     Board board;
     auto carrier = std::make_shared<Ship>(ShipType::Carrier, Orientation::Horizontal);
 
-    // Length 5 starting at x=7 extends out of bounds (7, 8, 9, 10, 11)
     EXPECT_FALSE(board.placeShip(carrier, {7, 0}));
 }
 
@@ -69,6 +38,57 @@ TEST(BoardTest, AttackMissAndDuplicate) {
     EXPECT_EQ(board.receiveAttack({5, 5}), AttackResult::Miss);
     EXPECT_EQ(board.getCell(5, 5), CellState::Miss);
 
-    // Attacking the same cell again is invalid
     EXPECT_EQ(board.receiveAttack({5, 5}), AttackResult::Invalid);
+}
+
+TEST(AITest, RandomShipPlacementValid) {
+    Board board;
+    BattleshipAI::placeShipsRandomly(board);
+
+    int occupiedCount = 0;
+    for (int y = 0; y < Board::SIZE; ++y) {
+        for (int x = 0; x < Board::SIZE; ++x) {
+            if (board.getCell(x, y) == CellState::ShipPresent) {
+                occupiedCount++;
+            }
+        }
+    }
+    EXPECT_EQ(occupiedCount, 17);
+}
+
+TEST(EngineTest, PlacementPhaseAndTurnProgression) {
+    BattleshipEngine engine(OpponentType::LocalAI);
+
+    // 1. Verify engine starts in placement phase
+    EXPECT_EQ(engine.getSnapshot().state, MatchState::PlacementPhase);
+    EXPECT_FALSE(engine.isPlacementComplete());
+
+    // 2. Cannot fire before finishing placement
+    EXPECT_FALSE(engine.humanFire({0, 0}));
+
+    // 3. Complete placement
+    engine.randomizeHumanFleet();
+    EXPECT_TRUE(engine.isPlacementComplete());
+    EXPECT_EQ(engine.getSnapshot().state, MatchState::PlayerTurn);
+
+    // 4. Fire until a miss occurs (hits retain the turn due to the consecutive hit rule)
+    bool missed = false;
+    for (int y = 0; y < Board::SIZE && !missed; ++y) {
+        for (int x = 0; x < Board::SIZE && !missed; ++x) {
+            if (engine.getOpponentBoard().getCell(x, y) == CellState::Empty) {
+                EXPECT_TRUE(engine.humanFire({x, y}));
+                missed = true;
+            }
+        }
+    }
+
+    // After a miss, turn transfers to Opponent
+    EXPECT_EQ(engine.getSnapshot().state, MatchState::OpponentTurn);
+
+    // AI timer delay simulation: update with 2.0s triggers bot turn
+    engine.update(2.1f);
+
+    // Turn should either remain OpponentTurn (if bot hit our ship) or return to PlayerTurn (if bot missed)
+    MatchState stateAfterAI = engine.getSnapshot().state;
+    EXPECT_TRUE(stateAfterAI == MatchState::PlayerTurn || stateAfterAI == MatchState::OpponentTurn);
 }

@@ -65,7 +65,10 @@ void BattleshipAI::addNeighbors(Coordinate c) {
 }
 
 void BattleshipAI::placeShipsRandomly(Board& board) {
-    std::mt19937 rng(static_cast<unsigned>(std::chrono::steady_clock::now().time_since_epoch().count()));
+    // True hardware entropy device to avoid seed repetition
+    std::random_device rd;
+    std::mt19937 rng(rd());
+
     std::uniform_int_distribution<int> posDist(0, Board::SIZE - 1);
     std::uniform_int_distribution<int> orientDist(0, 1);
 
@@ -79,9 +82,21 @@ void BattleshipAI::placeShipsRandomly(Board& board) {
 
     for (auto type : shipTypes) {
         bool placed = false;
-        while (!placed) {
-            auto orientation = orientDist(rng) == 0 ? Orientation::Horizontal : Orientation::Vertical;
-            Coordinate coord{posDist(rng), posDist(rng)};
+        int attempts = 0;
+
+        while (!placed && attempts < 1000) {
+            attempts++;
+            auto orientation = (orientDist(rng) == 0) ? Orientation::Horizontal : Orientation::Vertical;
+            
+            // Generate coordinates constrained to board limits based on orientation
+            Ship testShip(type, orientation);
+            int maxX = (orientation == Orientation::Horizontal) ? (Board::SIZE - testShip.length()) : (Board::SIZE - 1);
+            int maxY = (orientation == Orientation::Vertical) ? (Board::SIZE - testShip.length()) : (Board::SIZE - 1);
+
+            std::uniform_int_distribution<int> xDist(0, maxX);
+            std::uniform_int_distribution<int> yDist(0, maxY);
+
+            Coordinate coord{xDist(rng), yDist(rng)};
             auto ship = std::make_shared<Ship>(type, orientation);
             placed = board.placeShip(ship, coord);
         }

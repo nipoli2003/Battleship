@@ -31,7 +31,7 @@ void GraphicalView::drawButton(Rectangle bounds, const char* text, bool hovered)
 
 void GraphicalView::render() {
     BeginDrawing();
-    ClearBackground(Color{15, 25, 35, 255}); // Dark naval ocean
+    ClearBackground(Color{15, 25, 35, 255});
 
     switch (m_currentScene) {
         case AppScene::MainMenu:
@@ -41,7 +41,11 @@ void GraphicalView::render() {
             renderLobbyWait();
             break;
         case AppScene::InGame:
-            renderGame();
+            if (m_engine.getSnapshot().state == MatchState::PlacementPhase) {
+                renderPlacement();
+            } else {
+                renderGame();
+            }
             break;
     }
 
@@ -60,7 +64,7 @@ void GraphicalView::renderMainMenu() {
     float btnH = 50.0f;
     float startY = sh / 2.0f - 40.0f;
 
-    // 1. Play vs AI
+    // 1. Play vs Bot
     Rectangle btnAI{(sw - btnW) / 2.0f, startY, btnW, btnH};
     bool hovAI = CheckCollisionPointRec(mouse, btnAI);
     drawButton(btnAI, "Play vs Bot (Offline)", hovAI);
@@ -101,6 +105,70 @@ void GraphicalView::renderLobbyWait() {
     }
 }
 
+void GraphicalView::renderPlacement() {
+    int sw = GetScreenWidth();
+    const auto& snapshot = m_engine.getSnapshot();
+
+    // Toggle rotation with R
+    if (IsKeyPressed(KEY_R)) {
+        m_placementOrientation = (m_placementOrientation == Orientation::Horizontal) ? 
+                                 Orientation::Vertical : Orientation::Horizontal;
+    }
+
+    DrawText("FLEET DEPLOYMENT", (sw - MeasureText("FLEET DEPLOYMENT", 30)) / 2, 35, 30, SKYBLUE);
+    DrawText(snapshot.statusMessage.c_str(), (sw - MeasureText(snapshot.statusMessage.c_str(), 20)) / 2, 80, 20, YELLOW);
+
+    int gridWidth = Board::SIZE * CELL_SIZE;
+    int gridX = (sw - gridWidth) / 2;
+    int gridY = 150;
+
+    // Draw grid with placed ships
+    drawGrid(gridX, gridY, m_engine.getHumanBoard(), false, false);
+
+    // Hover preview
+    auto currentType = m_engine.getCurrentPlacementType();
+    Vector2 mouse = GetMousePosition();
+
+    if (currentType) {
+        Ship previewShip(*currentType, m_placementOrientation);
+        int hoverX = (mouse.x - gridX) / CELL_SIZE;
+        int hoverY = (mouse.y - gridY) / CELL_SIZE;
+
+        if (hoverX >= 0 && hoverX < Board::SIZE && hoverY >= 0 && hoverY < Board::SIZE) {
+            bool valid = m_engine.getHumanBoard().canPlaceShip(previewShip, {hoverX, hoverY});
+            Color ghostColor = valid ? Color{0, 220, 100, 120} : Color{220, 40, 40, 120};
+
+            int len = previewShip.length();
+            bool horiz = (m_placementOrientation == Orientation::Horizontal);
+
+            for (int i = 0; i < len; ++i) {
+                int cx = horiz ? hoverX + i : hoverX;
+                int cy = horiz ? hoverY : hoverY + i;
+                if (cx < Board::SIZE && cy < Board::SIZE) {
+                    DrawRectangle(gridX + cx * CELL_SIZE, gridY + cy * CELL_SIZE, CELL_SIZE, CELL_SIZE, ghostColor);
+                }
+            }
+
+            if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && valid) {
+                m_engine.placeCurrentShip({hoverX, hoverY}, m_placementOrientation);
+            }
+        }
+    }
+
+    // Auto-place button
+    Rectangle btnRandom{static_cast<float>(gridX + gridWidth + 30), static_cast<float>(gridY + 50), 160.0f, 40.0f};
+    bool hovRandom = CheckCollisionPointRec(mouse, btnRandom);
+    drawButton(btnRandom, "Auto-Deploy", hovRandom);
+    if (hovRandom && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+        m_engine.randomizeHumanFleet();
+    }
+
+    // Instructions
+    DrawText("Orientation: [R] to Rotate", gridX, gridY + gridWidth + 25, 18, RAYWHITE);
+    DrawText(m_placementOrientation == Orientation::Horizontal ? "(Horizontal)" : "(Vertical)", 
+             gridX + 230, gridY + gridWidth + 25, 18, SKYBLUE);
+}
+
 void GraphicalView::drawGrid(int startX, int startY, const Board& board, bool hideShips, bool isEnemy) {
     Vector2 mouse = GetMousePosition();
 
@@ -117,7 +185,7 @@ void GraphicalView::drawGrid(int startX, int startY, const Board& board, bool hi
             else if (cell == CellState::Miss) fill = WHITE;
 
             if (isEnemy && cell != CellState::Hit && cell != CellState::Miss && CheckCollisionPointRec(mouse, cellRec)) {
-                fill = Color{40, 80, 120, 255}; // Highlight target
+                fill = Color{40, 80, 120, 255};
             }
 
             DrawRectangleRec(cellRec, fill);
@@ -147,7 +215,6 @@ void GraphicalView::renderGame() {
     int sw = GetScreenWidth();
     const auto& snapshot = m_engine.getSnapshot();
 
-    // Top status message
     DrawText(snapshot.statusMessage.c_str(), (sw - MeasureText(snapshot.statusMessage.c_str(), 22)) / 2, 35, 22, YELLOW);
 
     int gridWidth = Board::SIZE * CELL_SIZE;
@@ -155,20 +222,16 @@ void GraphicalView::renderGame() {
     int enemyGridX = (sw / 2) + 50;
     int gridY = 160;
 
-    // Draw Labels
     DrawText("YOUR FLEET", humanGridX + 110, gridY - 30, 20, RAYWHITE);
     DrawText("RADAR / ENEMY FLEET", enemyGridX + 70, gridY - 30, 20, RAYWHITE);
 
-    // Draw Grids
     drawGrid(humanGridX, gridY, m_engine.getHumanBoard(), false, false);
     drawGrid(enemyGridX, gridY, m_engine.getOpponentBoard(), true, true);
 
-    // Human shot processing
     if (snapshot.state == MatchState::PlayerTurn) {
         handleBoardClicks(enemyGridX, gridY);
     }
 
-    // Leave button
     Rectangle btnLeave{20.0f, 20.0f, 100.0f, 35.0f};
     bool hovLeave = CheckCollisionPointRec(GetMousePosition(), btnLeave);
     drawButton(btnLeave, "< Menu", hovLeave);
