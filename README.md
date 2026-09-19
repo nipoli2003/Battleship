@@ -32,6 +32,16 @@ ctest --test-dir build --output-on-failure        # test only
 ./build/battleship                               # run only
 ```
 
+## Committing & Pushing
+
+Instead of typing out `git add`, `git commit`, and `git push` separately every time, use `gitpush.sh`:
+
+```bash
+./gitpush.sh "your commit message"
+```
+
+This stages all changes (`git add .`), commits them with the message you pass in as an argument, and pushes to `origin main`. It exits with an error (without committing anything) if you forget to provide a commit message, and stops immediately if any step fails — so a failed push, for example, won't be silently ignored.
+
 ## In Case of F*** Up
 
 Things go wrong. Here's how to recover, roughly in the order you should try them:

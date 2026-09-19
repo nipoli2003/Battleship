@@ -19,6 +19,20 @@ void GraphicalView::close() {
     CloseWindow();
 }
 
+void GraphicalView::handleFullscreenToggle() {
+    if (IsKeyPressed(KEY_F)) {
+        if (IsWindowState(FLAG_WINDOW_MAXIMIZED)) {
+            ClearWindowState(FLAG_WINDOW_MAXIMIZED);
+            ClearWindowState(FLAG_WINDOW_UNDECORATED);
+            SetWindowSize(m_windowedWidth, m_windowedHeight);
+        } else {
+            m_windowedWidth = GetScreenWidth();
+            m_windowedHeight = GetScreenHeight();
+            SetWindowState(FLAG_WINDOW_MAXIMIZED | FLAG_WINDOW_UNDECORATED);
+        }
+    }
+}
+
 void GraphicalView::drawButton(Rectangle bounds, const char* text, bool hovered) {
     Color bg = hovered ? Color{50, 80, 110, 255} : Color{25, 45, 65, 255};
     DrawRectangleRec(bounds, bg);
@@ -88,6 +102,9 @@ void GraphicalView::renderMainMenu() {
     if (hovExit && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
         m_shouldExit = true;
     }
+
+    // Fullscreen toggle hint
+    DrawText("Press [F] or [F11] to toggle fullscreen", 20, sh - 30, 16, LIGHTGRAY);
 }
 
 void GraphicalView::renderLobbyWait() {
