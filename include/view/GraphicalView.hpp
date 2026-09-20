@@ -6,6 +6,7 @@
 #include "raylib.h"
 #include <vector>
 #include <string>
+#include <map>
 
 class GraphicalView : public IView {
 public:

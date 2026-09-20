@@ -44,6 +44,8 @@ void GraphicalView::drawButton(Rectangle bounds, const char* text, bool hovered)
 }
 
 void GraphicalView::render() {
+    handleFullscreenToggle();
+    
     BeginDrawing();
     ClearBackground(Color{15, 25, 35, 255});
 
