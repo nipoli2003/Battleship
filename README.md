@@ -79,6 +79,11 @@ rm -rf build
 
 We're following a MoSCoW-prioritized roadmap. The guiding principle: **get the networking backbone in place before piling on features**, since online multiplayer is a large chunk of the grade and every extra rule we add has to be serialized and agreed on by both clients.
 
+### Sprint 0 - Progress Roadmap creation
+- Decide future feature introduction.
+- Debate current situation of the build's skeleton and overall setup.
+- Set up roles in the project, split jobs and tasks, come up with a general program.
+
 ### Sprint 1 — Model Generalization (Variable Board & Obstacles)
 - Replace the hardcoded `static constexpr int SIZE = 10` with a dynamic `Board(int width, int height)` constructor, so 8×8 / 10×10 / 12×12 (and arbitrary sizes) are supported.
 - Add `CellState::Obstacle` (islands/reefs/shipwrecks) and a seedable island-generation step.

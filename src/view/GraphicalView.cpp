@@ -111,7 +111,7 @@ void GraphicalView::render() {
 
 void GraphicalView::renderMainMenu() {
     const char* title = "BATTLESHIP";
-    DrawText(title, (VIRTUAL_WIDTH - MeasureText(title, 48)) / 2, VIRTUAL_HEIGHT / 4, 48, SKYBLUE);
+    DrawText(title, (VIRTUAL_WIDTH - MeasureText(title, 96)) / 2, VIRTUAL_HEIGHT / 4, 96, SKYBLUE);
 
     Vector2 mouse = getVirtualMousePosition();
     float btnW = 280.0f;
