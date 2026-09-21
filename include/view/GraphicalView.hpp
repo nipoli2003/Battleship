@@ -20,6 +20,7 @@ public:
 
 private:
     void handleFullscreenToggle();
+    [[nodiscard]] Vector2 getVirtualMousePosition() const;
 
     // scene renderers and handlers
     void renderMainMenu();
@@ -39,7 +40,12 @@ private:
     // Placement state
     Orientation m_placementOrientation{Orientation::Horizontal};
 
-    int m_windowedWidth{1200};
-    int m_windowedHeight{700};
+    // Virtual design canvas dimensions
+    static constexpr int VIRTUAL_WIDTH = 1200;
+    static constexpr int VIRTUAL_HEIGHT = 700;
+    RenderTexture2D m_target{};
+
+    int m_windowedWidth{VIRTUAL_WIDTH};
+    int m_windowedHeight{VIRTUAL_HEIGHT};
     static constexpr int CELL_SIZE = 35;
 };

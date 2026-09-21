@@ -1,14 +1,19 @@
 #include "view/GraphicalView.hpp"
+#include <algorithm>
 #include <string>
 
 GraphicalView::GraphicalView(BattleshipEngine& engine)
     : m_engine(engine) {}
 
 void GraphicalView::init() {
-    SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_WINDOW_HIGHDPI | FLAG_VSYNC_HINT);
+    SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_VSYNC_HINT);
     InitWindow(m_windowedWidth, m_windowedHeight, "Battleship - Naval Combat");
     SetWindowMinSize(960, 540);
     SetTargetFPS(60);
+
+    // Create the virtual canvas buffer
+    m_target = LoadRenderTexture(VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
+    SetTextureFilter(m_target.texture, TEXTURE_FILTER_BILINEAR);
 }
 
 bool GraphicalView::shouldClose() const {
@@ -16,21 +21,34 @@ bool GraphicalView::shouldClose() const {
 }
 
 void GraphicalView::close() {
+    UnloadRenderTexture(m_target);
     CloseWindow();
 }
 
 void GraphicalView::handleFullscreenToggle() {
-    if (IsKeyPressed(KEY_F)) {
-        if (IsWindowState(FLAG_WINDOW_MAXIMIZED)) {
-            ClearWindowState(FLAG_WINDOW_MAXIMIZED);
-            ClearWindowState(FLAG_WINDOW_UNDECORATED);
-            SetWindowSize(m_windowedWidth, m_windowedHeight);
-        } else {
-            m_windowedWidth = GetScreenWidth();
-            m_windowedHeight = GetScreenHeight();
-            SetWindowState(FLAG_WINDOW_MAXIMIZED | FLAG_WINDOW_UNDECORATED);
-        }
+    if (IsKeyPressed(KEY_F) || IsKeyPressed(KEY_F11)) {
+        ToggleFullscreen();
     }
+}
+
+// Maps mouse coordinates from the actual physical window onto the virtual 1200x700 canvas
+Vector2 GraphicalView::getVirtualMousePosition() const {
+    Vector2 rawMouse = GetMousePosition();
+    float scale = std::min(static_cast<float>(GetScreenWidth()) / VIRTUAL_WIDTH,
+                           static_cast<float>(GetScreenHeight()) / VIRTUAL_HEIGHT);
+
+    float offsetX = (GetScreenWidth() - (VIRTUAL_WIDTH * scale)) * 0.5f;
+    float offsetY = (GetScreenHeight() - (VIRTUAL_HEIGHT * scale)) * 0.5f;
+
+    Vector2 virtualMouse{
+        (rawMouse.x - offsetX) / scale,
+        (rawMouse.y - offsetY) / scale
+    };
+
+    virtualMouse.x = std::clamp(virtualMouse.x, 0.0f, static_cast<float>(VIRTUAL_WIDTH));
+    virtualMouse.y = std::clamp(virtualMouse.y, 0.0f, static_cast<float>(VIRTUAL_HEIGHT));
+
+    return virtualMouse;
 }
 
 void GraphicalView::drawButton(Rectangle bounds, const char* text, bool hovered) {
@@ -45,8 +63,9 @@ void GraphicalView::drawButton(Rectangle bounds, const char* text, bool hovered)
 
 void GraphicalView::render() {
     handleFullscreenToggle();
-    
-    BeginDrawing();
+
+    // 1. Render game scenes onto the virtual 1200x700 canvas
+    BeginTextureMode(m_target);
     ClearBackground(Color{15, 25, 35, 255});
 
     switch (m_currentScene) {
@@ -64,24 +83,42 @@ void GraphicalView::render() {
             }
             break;
     }
+    EndTextureMode();
 
+    // 2. Scale and letterbox the virtual canvas to the physical window
+    BeginDrawing();
+    ClearBackground(BLACK); // Letterbox border bars
+
+    float scale = std::min(static_cast<float>(GetScreenWidth()) / VIRTUAL_WIDTH,
+                           static_cast<float>(GetScreenHeight()) / VIRTUAL_HEIGHT);
+
+    Rectangle srcRec{
+        0.0f, 0.0f,
+        static_cast<float>(m_target.texture.width),
+        -static_cast<float>(m_target.texture.height) // Invert Y because OpenGL coordinates are flipped
+    };
+
+    Rectangle destRec{
+        (GetScreenWidth() - (VIRTUAL_WIDTH * scale)) * 0.5f,
+        (GetScreenHeight() - (VIRTUAL_HEIGHT * scale)) * 0.5f,
+        VIRTUAL_WIDTH * scale,
+        VIRTUAL_HEIGHT * scale
+    };
+
+    DrawTexturePro(m_target.texture, srcRec, destRec, Vector2{0.0f, 0.0f}, 0.0f, WHITE);
     EndDrawing();
 }
 
 void GraphicalView::renderMainMenu() {
-    int sw = GetScreenWidth();
-    int sh = GetScreenHeight();
-
     const char* title = "BATTLESHIP";
-    DrawText(title, (sw - MeasureText(title, 48)) / 2, sh / 4, 48, SKYBLUE);
+    DrawText(title, (VIRTUAL_WIDTH - MeasureText(title, 48)) / 2, VIRTUAL_HEIGHT / 4, 48, SKYBLUE);
 
-    Vector2 mouse = GetMousePosition();
+    Vector2 mouse = getVirtualMousePosition();
     float btnW = 280.0f;
     float btnH = 50.0f;
-    float startY = sh / 2.0f - 40.0f;
+    float startY = VIRTUAL_HEIGHT / 2.0f - 40.0f;
 
-    // 1. Play vs Bot
-    Rectangle btnAI{(sw - btnW) / 2.0f, startY, btnW, btnH};
+    Rectangle btnAI{(VIRTUAL_WIDTH - btnW) / 2.0f, startY, btnW, btnH};
     bool hovAI = CheckCollisionPointRec(mouse, btnAI);
     drawButton(btnAI, "Play vs Bot (Offline)", hovAI);
     if (hovAI && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
@@ -89,35 +126,27 @@ void GraphicalView::renderMainMenu() {
         m_currentScene = AppScene::InGame;
     }
 
-    // 2. Online Multiplayer
-    Rectangle btnNet{(sw - btnW) / 2.0f, startY + 65.0f, btnW, btnH};
+    Rectangle btnNet{(VIRTUAL_WIDTH - btnW) / 2.0f, startY + 65.0f, btnW, btnH};
     bool hovNet = CheckCollisionPointRec(mouse, btnNet);
     drawButton(btnNet, "Online PVP Lobby", hovNet);
     if (hovNet && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
         m_currentScene = AppScene::OnlineLobbyWait;
     }
 
-    // 3. Exit
-    Rectangle btnExit{(sw - btnW) / 2.0f, startY + 130.0f, btnW, btnH};
+    Rectangle btnExit{(VIRTUAL_WIDTH - btnW) / 2.0f, startY + 130.0f, btnW, btnH};
     bool hovExit = CheckCollisionPointRec(mouse, btnExit);
     drawButton(btnExit, "Exit Game", hovExit);
     if (hovExit && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
         m_shouldExit = true;
     }
-
-    // Fullscreen toggle hint
-    DrawText("Press [F] or [F11] to toggle fullscreen", 20, sh - 30, 16, LIGHTGRAY);
 }
 
 void GraphicalView::renderLobbyWait() {
-    int sw = GetScreenWidth();
-    int sh = GetScreenHeight();
+    DrawText("ONLINE LOBBY", (VIRTUAL_WIDTH - MeasureText("ONLINE LOBBY", 32)) / 2, 100, 32, SKYBLUE);
+    DrawText("Waiting for network connection setup...", (VIRTUAL_WIDTH - MeasureText("Waiting for network connection setup...", 20)) / 2, 220, 20, RAYWHITE);
 
-    DrawText("ONLINE LOBBY", (sw - MeasureText("ONLINE LOBBY", 32)) / 2, 100, 32, SKYBLUE);
-    DrawText("Waiting for network connection setup...", (sw - MeasureText("Waiting for network connection setup...", 20)) / 2, 220, 20, RAYWHITE);
-
-    Rectangle btnBack{(sw - 200.0f) / 2.0f, 360.0f, 200.0f, 45.0f};
-    bool hovBack = CheckCollisionPointRec(GetMousePosition(), btnBack);
+    Rectangle btnBack{(VIRTUAL_WIDTH - 200.0f) / 2.0f, 360.0f, 200.0f, 45.0f};
+    bool hovBack = CheckCollisionPointRec(getVirtualMousePosition(), btnBack);
     drawButton(btnBack, "Back to Menu", hovBack);
     if (hovBack && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
         m_currentScene = AppScene::MainMenu;
@@ -125,28 +154,24 @@ void GraphicalView::renderLobbyWait() {
 }
 
 void GraphicalView::renderPlacement() {
-    int sw = GetScreenWidth();
     const auto& snapshot = m_engine.getSnapshot();
 
-    // Toggle rotation with R
     if (IsKeyPressed(KEY_R)) {
         m_placementOrientation = (m_placementOrientation == Orientation::Horizontal) ? 
                                  Orientation::Vertical : Orientation::Horizontal;
     }
 
-    DrawText("FLEET DEPLOYMENT", (sw - MeasureText("FLEET DEPLOYMENT", 30)) / 2, 35, 30, SKYBLUE);
-    DrawText(snapshot.statusMessage.c_str(), (sw - MeasureText(snapshot.statusMessage.c_str(), 20)) / 2, 80, 20, YELLOW);
+    DrawText("FLEET DEPLOYMENT", (VIRTUAL_WIDTH - MeasureText("FLEET DEPLOYMENT", 30)) / 2, 35, 30, SKYBLUE);
+    DrawText(snapshot.statusMessage.c_str(), (VIRTUAL_WIDTH - MeasureText(snapshot.statusMessage.c_str(), 20)) / 2, 80, 20, YELLOW);
 
     int gridWidth = Board::SIZE * CELL_SIZE;
-    int gridX = (sw - gridWidth) / 2;
+    int gridX = (VIRTUAL_WIDTH - gridWidth) / 2;
     int gridY = 150;
 
-    // Draw grid with placed ships
     drawGrid(gridX, gridY, m_engine.getHumanBoard(), false, false);
 
-    // Hover preview
     auto currentType = m_engine.getCurrentPlacementType();
-    Vector2 mouse = GetMousePosition();
+    Vector2 mouse = getVirtualMousePosition();
 
     if (currentType) {
         Ship previewShip(*currentType, m_placementOrientation);
@@ -174,7 +199,6 @@ void GraphicalView::renderPlacement() {
         }
     }
 
-    // Auto-place button
     Rectangle btnRandom{static_cast<float>(gridX + gridWidth + 30), static_cast<float>(gridY + 50), 160.0f, 40.0f};
     bool hovRandom = CheckCollisionPointRec(mouse, btnRandom);
     drawButton(btnRandom, "Auto-Deploy", hovRandom);
@@ -182,14 +206,13 @@ void GraphicalView::renderPlacement() {
         m_engine.randomizeHumanFleet();
     }
 
-    // Instructions
     DrawText("Orientation: [R] to Rotate", gridX, gridY + gridWidth + 25, 18, RAYWHITE);
     DrawText(m_placementOrientation == Orientation::Horizontal ? "(Horizontal)" : "(Vertical)", 
              gridX + 230, gridY + gridWidth + 25, 18, SKYBLUE);
 }
 
 void GraphicalView::drawGrid(int startX, int startY, const Board& board, bool hideShips, bool isEnemy) {
-    Vector2 mouse = GetMousePosition();
+    Vector2 mouse = getVirtualMousePosition();
 
     for (int y = 0; y < Board::SIZE; ++y) {
         for (int x = 0; x < Board::SIZE; ++x) {
@@ -216,7 +239,7 @@ void GraphicalView::drawGrid(int startX, int startY, const Board& board, bool hi
 void GraphicalView::handleBoardClicks(int enemyStartX, int enemyStartY) {
     if (!IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) return;
 
-    Vector2 mouse = GetMousePosition();
+    Vector2 mouse = getVirtualMousePosition();
     for (int y = 0; y < Board::SIZE; ++y) {
         for (int x = 0; x < Board::SIZE; ++x) {
             Rectangle cellRec{static_cast<float>(enemyStartX + x * CELL_SIZE), static_cast<float>(enemyStartY + y * CELL_SIZE), 
@@ -231,14 +254,13 @@ void GraphicalView::handleBoardClicks(int enemyStartX, int enemyStartY) {
 }
 
 void GraphicalView::renderGame() {
-    int sw = GetScreenWidth();
     const auto& snapshot = m_engine.getSnapshot();
 
-    DrawText(snapshot.statusMessage.c_str(), (sw - MeasureText(snapshot.statusMessage.c_str(), 22)) / 2, 35, 22, YELLOW);
+    DrawText(snapshot.statusMessage.c_str(), (VIRTUAL_WIDTH - MeasureText(snapshot.statusMessage.c_str(), 22)) / 2, 35, 22, YELLOW);
 
     int gridWidth = Board::SIZE * CELL_SIZE;
-    int humanGridX = (sw / 2) - gridWidth - 50;
-    int enemyGridX = (sw / 2) + 50;
+    int humanGridX = (VIRTUAL_WIDTH / 2) - gridWidth - 50;
+    int enemyGridX = (VIRTUAL_WIDTH / 2) + 50;
     int gridY = 160;
 
     DrawText("YOUR FLEET", humanGridX + 110, gridY - 30, 20, RAYWHITE);
@@ -252,7 +274,7 @@ void GraphicalView::renderGame() {
     }
 
     Rectangle btnLeave{20.0f, 20.0f, 100.0f, 35.0f};
-    bool hovLeave = CheckCollisionPointRec(GetMousePosition(), btnLeave);
+    bool hovLeave = CheckCollisionPointRec(getVirtualMousePosition(), btnLeave);
     drawButton(btnLeave, "< Menu", hovLeave);
     if (hovLeave && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
         m_currentScene = AppScene::MainMenu;
