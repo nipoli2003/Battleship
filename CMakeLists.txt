@@ -20,6 +20,18 @@ set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(raylib)
 
 # ---------------------------------------------------------
+# Dependencies: Sockpp
+# ---------------------------------------------------------
+FetchContent_Declare(
+    sockpp
+    GIT_REPOSITORY https://github.com/fpagliughi/sockpp.git
+    GIT_TAG master
+)
+set(SOCKPP_BUILD_SHARED OFF CACHE BOOL "" FORCE)
+set(SOCKPP_BUILD_STATIC ON  CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(sockpp)
+
+# ---------------------------------------------------------
 # Headless Core Library (Model + Controller, shared with tests)
 # ---------------------------------------------------------
 file(GLOB_RECURSE MODEL_SOURCES "src/model/*.cpp")
@@ -56,6 +68,17 @@ if(APPLE)
         "-framework CoreVideo"
     )
 endif()
+
+# ---------------------------------------------------------
+# Relay Server Executable (without raylib + battleship_core)
+# ---------------------------------------------------------
+add_executable(battleship_relay
+    src/relay_main.cpp
+    src/network/RelayServer.cpp
+)
+
+target_include_directories(battleship_relay PRIVATE src)
+target_link_libraries(battleship_relay PRIVATE sockpp-static pthread)
 
 # ---------------------------------------------------------
 # Unit Testing
