@@ -29,7 +29,7 @@ add_library(battleship_core STATIC
     ${MODEL_SOURCES}
     ${CONTROLLER_SOURCES}
 )
-target_include_directories(battleship_core PUBLIC include)
+target_include_directories(battleship_core PUBLIC src)
 
 # ---------------------------------------------------------
 # Main Game Executable (GUI + View)
@@ -41,8 +41,8 @@ add_executable(battleship
     ${VIEW_SOURCES}
 )
 
-target_include_directories(battleship PRIVATE 
-    include
+target_include_directories(battleship PRIVATE
+    src
     ${raylib_SOURCE_DIR}/src
 )
 
