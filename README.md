@@ -32,15 +32,52 @@ ctest --test-dir build --output-on-failure        # test only
 ./build/battleship                               # run only
 ```
 
-## Committing & Pushing
+## Committing & Pushing (team workflow)
 
-Instead of typing out `git add`, `git commit`, and `git push` separately every time, use `gitpush.sh`:
+This repo now has multiple contributors, so **nobody pushes straight to `main` anymore.** Each person works on their own branch and merges into `main` via a Pull Request on GitHub. This keeps `main` always in a working state and makes it obvious who changed what.
+
+### One-time setup / picking up a teammate's branch
+
+Branches other people create only exist on GitHub until you fetch them:
 
 ```bash
-./gitpush.sh "your commit message"
+git fetch origin
+git branch -a                          # lists local AND remote branches
+git checkout -b dj_dev origin/dj_dev   # example: check out a teammate's branch locally
 ```
 
-This stages all changes (`git add .`), commits them with the message you pass in as an argument, and pushes to `origin main`. It exits with an error (without committing anything) if you forget to provide a commit message, and stops immediately if any step fails — so a failed push, for example, won't be silently ignored.
+### Your normal workflow
+
+1. **Start from an up-to-date `main`:**
+   ```bash
+   git checkout main
+   git pull origin main
+   ```
+2. **Create your own branch** (once per feature/task):
+   ```bash
+   git checkout -b yourname/short-description
+   ```
+3. **Commit and push your branch** with `gitpush.sh`:
+   ```bash
+   ./gitpush.sh "your commit message"
+   ```
+   This stages your changes, commits them, syncs with `origin/<your-branch>` (`git pull --rebase`) so you don't clobber your own earlier pushes from another machine, and pushes your branch — never `main` directly. If you're on `main` or `master` it refuses to run and tells you to make a branch first.
+4. **Open a Pull Request** on GitHub from your branch into `main` once your work is ready (or ready for review). Merge it there instead of pushing directly.
+
+### If a push is rejected
+
+If GitHub rejects your push because someone else updated the same branch first, don't force-push over their work:
+
+```bash
+git pull --rebase origin <branch-name>
+git push origin <branch-name>
+```
+
+### Keeping things tidy
+
+- One branch per feature/task, named `yourname/thing` (e.g. `dj/sonar-ability`) so it's obvious whose work is whose.
+- Delete branches on GitHub once their PR is merged, to keep the branch list clean.
+- Don't commit generated files (`build/`) — make sure they're in `.gitignore`.
 
 ## In Case of F*** Up
 
