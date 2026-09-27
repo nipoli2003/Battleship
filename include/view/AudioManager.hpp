@@ -23,13 +23,8 @@ enum class MusicTrack {
 class AudioManager {
 public:
     static AudioManager& instance();
-    static constexpr bool ENABLE_AUDIO = true;
 
-    void init() {
-        if constexpr (!ENABLE_AUDIO) return;
-        InitAudioDevice();
-        m_initialized = true;
-    }
+    void init();
     void update(); // Must be called each frame to stream music buffers
     void close();
 
