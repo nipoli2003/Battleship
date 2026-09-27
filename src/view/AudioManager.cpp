@@ -8,10 +8,21 @@ AudioManager& AudioManager::instance() {
 
 // Initialize the audio device if not already initialized
 void AudioManager::init() {
-    if (!m_initialized) {
-        InitAudioDevice();
-        m_initialized = true;
-    }
+    if (m_initialized) return;
+    InitAudioDevice();
+
+    // Map audio assets (ensure files exist in assets/audio/)
+    m_sounds[SoundEffect::FireSalvo]   = LoadSound("assets/audio/fire.wav");
+    m_sounds[SoundEffect::Hit]         = LoadSound("assets/audio/hit.wav");
+    m_sounds[SoundEffect::Miss]        = LoadSound("assets/audio/miss.wav");
+    m_sounds[SoundEffect::ShipSunk]    = LoadSound("assets/audio/sunk.wav");
+    m_sounds[SoundEffect::AbilityPing] = LoadSound("assets/audio/sonar.wav");
+    m_sounds[SoundEffect::ButtonClick] = LoadSound("assets/audio/click.wav");
+
+    m_music[MusicTrack::MainTheme]     = LoadMusicStream("assets/audio/main_theme.mp3");
+    m_music[MusicTrack::BattleTheme]   = LoadMusicStream("assets/audio/battle_theme.mp3");
+
+    m_initialized = true;
 }
 
 // Update the audio manager each frame to stream music buffers
