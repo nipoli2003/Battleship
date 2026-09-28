@@ -1,17 +1,23 @@
 #include "model/Board.hpp"
+#include <algorithm>
 
-Board::Board() {
+Board::Board(int size) {
+    reset(size);
+}
+
+void Board::reset(int newSize) {
+    m_size = std::clamp(newSize, MIN_SIZE, MAX_SIZE);
     reset();
 }
 
 void Board::reset() {
-    m_grid.assign(SIZE, std::vector<CellState>(SIZE, CellState::Empty));
-    m_shipGrid.assign(SIZE, std::vector<std::shared_ptr<Ship>>(SIZE, nullptr));
+    m_grid.assign(m_size, std::vector<CellState>(m_size, CellState::Empty));
+    m_shipGrid.assign(m_size, std::vector<std::shared_ptr<Ship>>(m_size, nullptr));
     m_placedShips.clear();
 }
 
 bool Board::inBounds(int x, int y) const noexcept {
-    return x >= 0 && x < SIZE && y >= 0 && y < SIZE;
+    return x >= 0 && x < m_size && y >= 0 && y < m_size;
 }
 
 CellState Board::getCell(int x, int y) const {

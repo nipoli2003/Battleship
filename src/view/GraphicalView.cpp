@@ -51,6 +51,10 @@ Vector2 GraphicalView::getVirtualMousePosition() const {
     return virtualMouse;
 }
 
+int GraphicalView::cellSize(int boardSize) noexcept {
+    return std::min(MAX_CELL_SIZE, MAX_GRID_PIXELS / boardSize);
+}
+
 void GraphicalView::drawButton(Rectangle bounds, const char* text, bool hovered) {
     Color bg = hovered ? Color{50, 80, 110, 255} : Color{25, 45, 65, 255};
     DrawRectangleRec(bounds, bg);
@@ -139,6 +143,27 @@ void GraphicalView::renderMainMenu() {
     if (hovExit && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
         m_shouldExit = true;
     }
+
+    // Board size selector:  [-]  Board: 10 x 10  [+]
+    const int boardSize = m_engine.getBoardSize();
+    float sizeRowY = startY + 205.0f;
+    float smallBtn = 45.0f;
+    Rectangle btnMinus{(VIRTUAL_WIDTH - btnW) / 2.0f, sizeRowY, smallBtn, smallBtn};
+    Rectangle btnPlus{(VIRTUAL_WIDTH + btnW) / 2.0f - smallBtn, sizeRowY, smallBtn, smallBtn};
+
+    bool hovMinus = CheckCollisionPointRec(mouse, btnMinus);
+    bool hovPlus = CheckCollisionPointRec(mouse, btnPlus);
+    drawButton(btnMinus, "-", hovMinus);
+    drawButton(btnPlus, "+", hovPlus);
+
+    std::string sizeLabel = "Board: " + std::to_string(boardSize) + " x " + std::to_string(boardSize);
+    DrawText(sizeLabel.c_str(), (VIRTUAL_WIDTH - MeasureText(sizeLabel.c_str(), 20)) / 2,
+             static_cast<int>(sizeRowY + (smallBtn - 20) / 2), 20, RAYWHITE);
+
+    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+        if (hovMinus) m_engine.setBoardSize(boardSize - 1);
+        if (hovPlus)  m_engine.setBoardSize(boardSize + 1);
+    }
 }
 
 void GraphicalView::renderLobbyWait() {
@@ -164,7 +189,9 @@ void GraphicalView::renderPlacement() {
     DrawText("FLEET DEPLOYMENT", (VIRTUAL_WIDTH - MeasureText("FLEET DEPLOYMENT", 30)) / 2, 35, 30, SKYBLUE);
     DrawText(snapshot.statusMessage.c_str(), (VIRTUAL_WIDTH - MeasureText(snapshot.statusMessage.c_str(), 20)) / 2, 80, 20, YELLOW);
 
-    int gridWidth = Board::SIZE * CELL_SIZE;
+    const int n = m_engine.getHumanBoard().size();
+    const int cs = cellSize(n);
+    int gridWidth = n * cs;
     int gridX = (VIRTUAL_WIDTH - gridWidth) / 2;
     int gridY = 150;
 
@@ -175,10 +202,10 @@ void GraphicalView::renderPlacement() {
 
     if (currentType) {
         Ship previewShip(*currentType, m_placementOrientation);
-        int hoverX = (mouse.x - gridX) / CELL_SIZE;
-        int hoverY = (mouse.y - gridY) / CELL_SIZE;
+        int hoverX = (mouse.x - gridX) / cs;
+        int hoverY = (mouse.y - gridY) / cs;
 
-        if (hoverX >= 0 && hoverX < Board::SIZE && hoverY >= 0 && hoverY < Board::SIZE) {
+        if (hoverX >= 0 && hoverX < n && hoverY >= 0 && hoverY < n) {
             bool valid = m_engine.getHumanBoard().canPlaceShip(previewShip, {hoverX, hoverY});
             Color ghostColor = valid ? Color{0, 220, 100, 120} : Color{220, 40, 40, 120};
 
@@ -188,8 +215,8 @@ void GraphicalView::renderPlacement() {
             for (int i = 0; i < len; ++i) {
                 int cx = horiz ? hoverX + i : hoverX;
                 int cy = horiz ? hoverY : hoverY + i;
-                if (cx < Board::SIZE && cy < Board::SIZE) {
-                    DrawRectangle(gridX + cx * CELL_SIZE, gridY + cy * CELL_SIZE, CELL_SIZE, CELL_SIZE, ghostColor);
+                if (cx < n && cy < n) {
+                    DrawRectangle(gridX + cx * cs, gridY + cy * cs, cs, cs, ghostColor);
                 }
             }
 
@@ -213,11 +240,13 @@ void GraphicalView::renderPlacement() {
 
 void GraphicalView::drawGrid(int startX, int startY, const Board& board, bool hideShips, bool isEnemy) {
     Vector2 mouse = getVirtualMousePosition();
+    const int n = board.size();
+    const int cs = cellSize(n);
 
-    for (int y = 0; y < Board::SIZE; ++y) {
-        for (int x = 0; x < Board::SIZE; ++x) {
-            Rectangle cellRec{static_cast<float>(startX + x * CELL_SIZE), static_cast<float>(startY + y * CELL_SIZE), 
-                             static_cast<float>(CELL_SIZE), static_cast<float>(CELL_SIZE)};
+    for (int y = 0; y < n; ++y) {
+        for (int x = 0; x < n; ++x) {
+            Rectangle cellRec{static_cast<float>(startX + x * cs), static_cast<float>(startY + y * cs), 
+                             static_cast<float>(cs), static_cast<float>(cs)};
 
             CellState cell = board.getCell(x, y);
             Color fill = Color{20, 40, 60, 255};
@@ -240,10 +269,12 @@ void GraphicalView::handleBoardClicks(int enemyStartX, int enemyStartY) {
     if (!IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) return;
 
     Vector2 mouse = getVirtualMousePosition();
-    for (int y = 0; y < Board::SIZE; ++y) {
-        for (int x = 0; x < Board::SIZE; ++x) {
-            Rectangle cellRec{static_cast<float>(enemyStartX + x * CELL_SIZE), static_cast<float>(enemyStartY + y * CELL_SIZE), 
-                             static_cast<float>(CELL_SIZE), static_cast<float>(CELL_SIZE)};
+    const int n = m_engine.getOpponentBoard().size();
+    const int cs = cellSize(n);
+    for (int y = 0; y < n; ++y) {
+        for (int x = 0; x < n; ++x) {
+            Rectangle cellRec{static_cast<float>(enemyStartX + x * cs), static_cast<float>(enemyStartY + y * cs), 
+                             static_cast<float>(cs), static_cast<float>(cs)};
 
             if (CheckCollisionPointRec(mouse, cellRec)) {
                 m_engine.humanFire({x, y});
@@ -258,13 +289,16 @@ void GraphicalView::renderGame() {
 
     DrawText(snapshot.statusMessage.c_str(), (VIRTUAL_WIDTH - MeasureText(snapshot.statusMessage.c_str(), 22)) / 2, 35, 22, YELLOW);
 
-    int gridWidth = Board::SIZE * CELL_SIZE;
+    const int n = m_engine.getHumanBoard().size();
+    const int cs = cellSize(n);
+    int gridWidth = n * cs;
     int humanGridX = (VIRTUAL_WIDTH / 2) - gridWidth - 50;
     int enemyGridX = (VIRTUAL_WIDTH / 2) + 50;
     int gridY = 160;
 
-    DrawText("YOUR FLEET", humanGridX + 110, gridY - 30, 20, RAYWHITE);
-    DrawText("RADAR / ENEMY FLEET", enemyGridX + 70, gridY - 30, 20, RAYWHITE);
+    // Center the labels above each grid (grid width now depends on board size)
+    DrawText("YOUR FLEET", humanGridX + (gridWidth - MeasureText("YOUR FLEET", 20)) / 2, gridY - 30, 20, RAYWHITE);
+    DrawText("RADAR / ENEMY FLEET", enemyGridX + (gridWidth - MeasureText("RADAR / ENEMY FLEET", 20)) / 2, gridY - 30, 20, RAYWHITE);
 
     drawGrid(humanGridX, gridY, m_engine.getHumanBoard(), false, false);
     drawGrid(enemyGridX, gridY, m_engine.getOpponentBoard(), true, true);

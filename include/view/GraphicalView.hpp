@@ -47,5 +47,9 @@ private:
 
     int m_windowedWidth{VIRTUAL_WIDTH};
     int m_windowedHeight{VIRTUAL_HEIGHT};
-    static constexpr int CELL_SIZE = 35;
+
+    // Cells shrink on larger boards so a grid never exceeds MAX_GRID_PIXELS on the virtual canvas
+    static constexpr int MAX_CELL_SIZE = 35;
+    static constexpr int MAX_GRID_PIXELS = 420;
+    [[nodiscard]] static int cellSize(int boardSize) noexcept;
 };

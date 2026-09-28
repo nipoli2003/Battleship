@@ -1,14 +1,19 @@
 #include "controller/BattleshipEngine.hpp"
+#include <algorithm>
 
 BattleshipEngine::BattleshipEngine(OpponentType opponentType)
     : m_opponentType(opponentType) {
     startNewGame();
 }
 
+void BattleshipEngine::setBoardSize(int size) {
+    m_boardSize = std::clamp(size, Board::MIN_SIZE, Board::MAX_SIZE);
+}
+
 void BattleshipEngine::startNewGame() {
-    m_humanBoard.reset();
-    m_opponentBoard.reset();
-    m_ai.reset();
+    m_humanBoard.reset(m_boardSize);
+    m_opponentBoard.reset(m_boardSize);
+    m_ai.reset(m_boardSize);
 
     // Standard Battleship fleet
     m_fleetToPlace = {

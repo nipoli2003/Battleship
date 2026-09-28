@@ -10,6 +10,10 @@ public:
     explicit BattleshipEngine(OpponentType opponentType = OpponentType::LocalAI);
 
     void startNewGame();
+
+    // Board size used by the NEXT startNewGame() call (clamped to Board::MIN_SIZE..MAX_SIZE)
+    void setBoardSize(int size);
+    [[nodiscard]] int getBoardSize() const noexcept { return m_boardSize; }
     void update(float dt); // Drives the AI thinking timer smoothly
 
     // Placement phase methods
@@ -35,6 +39,7 @@ private:
     Board m_opponentBoard;
     BattleshipAI m_ai;
     OpponentType m_opponentType;
+    int m_boardSize{Board::DEFAULT_SIZE};
     GameSnapshot m_snapshot;
 
     // Fleet placement tracking

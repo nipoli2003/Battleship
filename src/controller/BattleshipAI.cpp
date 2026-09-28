@@ -7,12 +7,13 @@ BattleshipAI::BattleshipAI()
     reset();
 }
 
-void BattleshipAI::reset() {
+void BattleshipAI::reset(int boardSize) {
+    m_boardSize = boardSize;
     m_remainingTargets.clear();
     m_priorityTargets.clear();
 
-    for (int y = 0; y < Board::SIZE; ++y) {
-        for (int x = 0; x < Board::SIZE; ++x) {
+    for (int y = 0; y < m_boardSize; ++y) {
+        for (int x = 0; x < m_boardSize; ++x) {
             m_remainingTargets.push_back({x, y});
         }
     }
@@ -58,7 +59,7 @@ void BattleshipAI::addNeighbors(Coordinate c) {
     };
 
     for (const auto& n : neighbors) {
-        if (n.x >= 0 && n.x < Board::SIZE && n.y >= 0 && n.y < Board::SIZE) {
+        if (n.x >= 0 && n.x < m_boardSize && n.y >= 0 && n.y < m_boardSize) {
             m_priorityTargets.push_back(n);
         }
     }
@@ -69,7 +70,7 @@ void BattleshipAI::placeShipsRandomly(Board& board) {
     std::random_device rd;
     std::mt19937 rng(rd());
 
-    std::uniform_int_distribution<int> posDist(0, Board::SIZE - 1);
+    const int n = board.size();
     std::uniform_int_distribution<int> orientDist(0, 1);
 
     const std::vector<ShipType> shipTypes = {
@@ -90,8 +91,8 @@ void BattleshipAI::placeShipsRandomly(Board& board) {
             
             // Generate coordinates constrained to board limits based on orientation
             Ship testShip(type, orientation);
-            int maxX = (orientation == Orientation::Horizontal) ? (Board::SIZE - testShip.length()) : (Board::SIZE - 1);
-            int maxY = (orientation == Orientation::Vertical) ? (Board::SIZE - testShip.length()) : (Board::SIZE - 1);
+            int maxX = (orientation == Orientation::Horizontal) ? (n - testShip.length()) : (n - 1);
+            int maxY = (orientation == Orientation::Vertical) ? (n - testShip.length()) : (n - 1);
 
             std::uniform_int_distribution<int> xDist(0, maxX);
             std::uniform_int_distribution<int> yDist(0, maxY);
