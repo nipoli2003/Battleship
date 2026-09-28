@@ -3,15 +3,15 @@
 #include <random>
 #include <thread>
 
-void RelayServer::run() {
+void RelayServer::run(int port) {
   sockpp::tcp_acceptor acc;
-  acc.open(sockpp::inet_address(port_), 4, SO_REUSEPORT);
+  acc.open(sockpp::inet_address(port), 4, SO_REUSEPORT);
   if (!acc) {
     // TODO: how to get error
     std::cerr << "Error: could not create tcp acceptor\n";
     return;
   }
-  std::cout << "Relay on port " << port_ << "\n";
+  std::cout << "Relay on port " << port << "\n";
 
   std::thread(&RelayServer::reaper, this).detach();
 
@@ -68,8 +68,8 @@ void RelayServer::reaper() {
   while (true) {
     std::this_thread::sleep_for(std::chrono::seconds(10));
     auto now = std::chrono::steady_clock::now();
-    std::lock_guard<std::mutex> lock(mutex_);
-    for (auto it = registry_.begin(); it != registry_.end();) {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    for (auto it = m_registry.begin(); it != m_registry.end();) {
       auto age = std::chrono::duration_cast<std::chrono::seconds>(
                      now - it->second.created_at)
                      .count();
@@ -80,7 +80,7 @@ void RelayServer::reaper() {
           it->second.socket->close();
           delete it->second.socket;
         }
-        it = registry_.erase(it);
+        it = m_registry.erase(it);
       } else {
         ++it;
       }
@@ -114,17 +114,17 @@ void RelayServer::handle_client(sockpp::tcp_socket sock) {
 void RelayServer::handle_new(sockpp::tcp_socket sock) {
   std::string code;
   {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::lock_guard<std::mutex> lock(m_mutex);
     do {
       code = make_code();
-    } while (registry_.count(code));
-    registry_[code] = {nullptr, std::chrono::steady_clock::now()};
+    } while (m_registry.count(code));
+    m_registry[code] = {nullptr, std::chrono::steady_clock::now()};
   }
   sockpp::tcp_socket *stored = new sockpp::tcp_socket(std::move(sock));
   send_msg(*stored, "CODE " + code + "\n");
   {
-    std::lock_guard<std::mutex> lock(mutex_);
-    registry_[code].socket = stored;
+    std::lock_guard<std::mutex> lock(m_mutex);
+    m_registry[code].socket = stored;
   }
   std::cout << "[+] Lobby created: " << code << "\n";
 }
@@ -133,11 +133,11 @@ void RelayServer::handle_join(sockpp::tcp_socket sock,
                               const std::string &code) {
   sockpp::tcp_socket *p0 = nullptr;
   {
-    std::lock_guard<std::mutex> lock(mutex_);
-    auto it = registry_.find(code);
-    if (it != registry_.end()) {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    auto it = m_registry.find(code);
+    if (it != m_registry.end()) {
       p0 = it->second.socket;
-      registry_.erase(it);
+      m_registry.erase(it);
     }
   }
 
