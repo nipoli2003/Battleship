@@ -301,7 +301,11 @@ void GraphicalView::renderGame() {
     DrawText("RADAR / ENEMY FLEET", enemyGridX + (gridWidth - MeasureText("RADAR / ENEMY FLEET", 20)) / 2, gridY - 30, 20, RAYWHITE);
 
     drawGrid(humanGridX, gridY, m_engine.getHumanBoard(), false, false);
-    drawGrid(enemyGridX, gridY, m_engine.getOpponentBoard(), true, true);
+    //drawGrid(enemyGridX, gridY, m_engine.getOpponentBoard(), true, true);
+
+    // make the enemy ships visible after the game
+    bool gameOver = (snapshot.state == MatchState::Defeat || snapshot.state == MatchState::Victory);
+    drawGrid(enemyGridX, gridY, m_engine.getOpponentBoard(), !gameOver, !gameOver);
 
     if (snapshot.state == MatchState::PlayerTurn) {
         handleBoardClicks(enemyGridX, gridY);
