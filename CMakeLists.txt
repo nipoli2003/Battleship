@@ -89,7 +89,7 @@ endif()
 # Relay Server Executable (without raylib + battleship_core)
 # ---------------------------------------------------------
 add_executable(battleship_server
-    src/relay_main.cpp
+    src/main_server.cpp
     src/network/Server.cpp
 )
 

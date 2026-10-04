@@ -1,6 +1,6 @@
 #include "network/RelayServer.hpp"
 
 int main() {
-  RelayServer server;
+  Server server;
   server.run(9000);
 }
