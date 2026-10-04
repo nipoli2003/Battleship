@@ -8,7 +8,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # ---------------------------------------------------------
-# Dependencies: Raylib
+# Dependencies
 # ---------------------------------------------------------
 include(FetchContent)
 FetchContent_Declare(
@@ -17,34 +17,27 @@ FetchContent_Declare(
     GIT_TAG master
     GIT_SHALLOW TRUE
 )
-set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-FetchContent_MakeAvailable(raylib)
 
-# ---------------------------------------------------------
-# Dependencies: Sockpp
-# ---------------------------------------------------------
+set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+
 FetchContent_Declare(
     sockpp
     GIT_REPOSITORY https://github.com/fpagliughi/sockpp.git
     GIT_TAG master
     GIT_SHALLOW TRUE
 )
+
 set(SOCKPP_BUILD_SHARED OFF CACHE BOOL "" FORCE)
 set(SOCKPP_BUILD_STATIC ON  CACHE BOOL "" FORCE)
-FetchContent_MakeAvailable(sockpp)
 
-# ---------------------------------------------------------
-# Dependencies: Glaze
-# ---------------------------------------------------------
 FetchContent_Declare(
   glaze
   GIT_REPOSITORY https://github.com/stephenberry/glaze.git
   GIT_TAG main
   GIT_SHALLOW TRUE
 )
-FetchContent_MakeAvailable(glaze)
 
-# target_link_libraries(${PROJECT_NAME} PRIVATE glaze::glaze)
+FetchContent_MakeAvailable(raylib sockpp glaze)
 
 # ---------------------------------------------------------
 # Headless Core Library (Model + Controller, shared with tests)
@@ -60,12 +53,13 @@ target_include_directories(battleship_core PUBLIC src)
 target_link_libraries(battleship_core PUBLIC glaze::glaze)
 
 # ---------------------------------------------------------
-# Main Game Executable (GUI + View)
+# Main Game Executable (GUI + Networking client)
 # ---------------------------------------------------------
 file(GLOB_RECURSE VIEW_SOURCES "src/view/*.cpp")
 
 add_executable(battleship
     src/main.cpp
+    src/network/Client.cpp
     ${VIEW_SOURCES}
 )
 
@@ -74,19 +68,19 @@ target_include_directories(battleship PRIVATE
     ${raylib_SOURCE_DIR}/src
 )
 
-target_link_libraries(battleship PRIVATE battleship_core raylib)
+target_link_libraries(battleship PRIVATE battleship_core raylib sockpp-static pthread)
 
 if(APPLE)
-    target_link_libraries(battleship PRIVATE 
-        "-framework OpenGL" 
-        "-framework Cocoa" 
-        "-framework IOKit" 
+    target_link_libraries(battleship PRIVATE
+        "-framework OpenGL"
+        "-framework Cocoa"
+        "-framework IOKit"
         "-framework CoreVideo"
     )
 endif()
 
 # ---------------------------------------------------------
-# Relay Server Executable (without raylib + battleship_core)
+# Relay Server Executable
 # ---------------------------------------------------------
 add_executable(battleship_server
     src/main_server.cpp
