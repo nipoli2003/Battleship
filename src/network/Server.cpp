@@ -1,9 +1,9 @@
-#include "network/RelayServer.hpp"
+#include "network/Server.hpp"
 #include <iostream>
 #include <random>
 #include <thread>
 
-void RelayServer::run(int port) {
+void GameServer::run(int port) {
   sockpp::tcp_acceptor acc;
   acc.open(sockpp::inet_address(port), 4, SO_REUSEPORT);
   if (!acc) {
@@ -13,7 +13,7 @@ void RelayServer::run(int port) {
   }
   std::cout << "Relay on port " << port << "\n";
 
-  std::thread(&RelayServer::reaper, this).detach();
+  std::thread(&GameServer::reaper, this).detach();
 
   while (true) {
     auto res = acc.accept();
@@ -25,7 +25,7 @@ void RelayServer::run(int port) {
   }
 }
 
-std::string RelayServer::make_code() {
+std::string GameServer::make_code() {
   static const char chars[] = "ABCDEFXY0123456789";
   static std::mt19937 rng(std::random_device{}());
   static std::uniform_int_distribution<> dist(0, sizeof(chars) - 2);
@@ -36,18 +36,18 @@ std::string RelayServer::make_code() {
   return code;
 }
 
-std::string RelayServer::trim(std::string s) {
+std::string GameServer::trim(std::string s) {
   while (!s.empty() &&
          (s.back() == '\n' || s.back() == '\r' || s.back() == ' '))
     s.pop_back();
   return s;
 }
 
-void RelayServer::send_msg(sockpp::tcp_socket &sock, const std::string &msg) {
+void GameServer::send_msg(sockpp::tcp_socket &sock, const std::string &msg) {
   sock.write_n(msg.c_str(), msg.size());
 }
 
-void RelayServer::relay(sockpp::tcp_socket *src, sockpp::tcp_socket *dst) {
+void GameServer::relay(sockpp::tcp_socket *src, sockpp::tcp_socket *dst) {
   char buf[BUFFER_SIZE];
   sockpp::result<unsigned long> n;
   while ((n = src->read(buf, sizeof(buf))) && n.value() > 0)
@@ -55,7 +55,7 @@ void RelayServer::relay(sockpp::tcp_socket *src, sockpp::tcp_socket *dst) {
   dst->close();
 }
 
-void RelayServer::run_pair(sockpp::tcp_socket *p0, sockpp::tcp_socket *p1) {
+void GameServer::run_pair(sockpp::tcp_socket *p0, sockpp::tcp_socket *p1) {
   std::thread t(relay, p0, p1);
   relay(p1, p0);
   t.join();
@@ -64,7 +64,7 @@ void RelayServer::run_pair(sockpp::tcp_socket *p0, sockpp::tcp_socket *p1) {
   delete p1;
 }
 
-void RelayServer::reaper() {
+void GameServer::reaper() {
   while (true) {
     std::this_thread::sleep_for(std::chrono::seconds(10));
     auto now = std::chrono::steady_clock::now();
@@ -88,7 +88,7 @@ void RelayServer::reaper() {
   }
 }
 
-void RelayServer::handle_client(sockpp::tcp_socket sock) {
+void GameServer::handle_client(sockpp::tcp_socket sock) {
   char buf[64] = {};
   sockpp::result<unsigned long> n = sock.read(buf, sizeof(buf) - 1);
   if (!n || n.value() <= 0)
@@ -111,7 +111,7 @@ void RelayServer::handle_client(sockpp::tcp_socket sock) {
   }
 }
 
-void RelayServer::handle_new(sockpp::tcp_socket sock) {
+void GameServer::handle_new(sockpp::tcp_socket sock) {
   std::string code;
   {
     std::lock_guard<std::mutex> lock(m_mutex);
@@ -129,7 +129,7 @@ void RelayServer::handle_new(sockpp::tcp_socket sock) {
   std::cout << "[+] Lobby created: " << code << "\n";
 }
 
-void RelayServer::handle_join(sockpp::tcp_socket sock,
+void GameServer::handle_join(sockpp::tcp_socket sock,
                               const std::string &code) {
   sockpp::tcp_socket *p0 = nullptr;
   {

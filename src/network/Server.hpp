@@ -9,9 +9,9 @@ constexpr int PORT = 9000;
 constexpr int BUFFER_SIZE = 4096;
 constexpr int LOBBY_TTL_S = 60; // seconds before an unjoined lobby is reaped
 
-class RelayServer {
+class GameServer {
 public:
-  RelayServer() = default;
+  GameServer() = default;
   void run(int port);
 
 private:
