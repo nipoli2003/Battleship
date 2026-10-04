@@ -1,11 +1,11 @@
 #pragma once
+#include "network/GameSession.hpp"
 #include <chrono>
 #include <mutex>
 #include <sockpp/tcp_acceptor.h>
 #include <sockpp/tcp_socket.h>
 #include <unordered_map>
 
-constexpr int PORT = 9000;
 constexpr int BUFFER_SIZE = 4096;
 constexpr int LOBBY_TTL_S = 60; // seconds before an unjoined lobby is reaped
 
@@ -20,16 +20,14 @@ class GameServer {
         std::chrono::steady_clock::time_point created_at;
     };
 
-    std::mutex m_mutex;
-    std::unordered_map<std::string, LobbyEntry> m_registry;
+    std::mutex m_lobby_mutex;
+    std::unordered_map<std::string, LobbyEntry> m_registry; // all unmatched (open) lobbies
 
     static std::string make_code();
     static std::string trim(std::string s);
-    static void send_msg(sockpp::tcp_socket &sock, const std::string &msg);
 
-    // relay functions (relay, without inspection)
-    static void relay(sockpp::tcp_socket *src, sockpp::tcp_socket *dst);
-    static void run_pair(sockpp::tcp_socket *p0, sockpp::tcp_socket *p1);
+    std::string readLine(sockpp::tcp_socket &sock);
+    static void sendLine(sockpp::tcp_socket &sock, const std::string &line);
 
     // evicts unjoined lobbies after TTL
     void reaper();
@@ -38,4 +36,9 @@ class GameServer {
     void handle_client(sockpp::tcp_socket sock);
     void handle_new(sockpp::tcp_socket sock);
     void handle_join(sockpp::tcp_socket sock, const std::string &code);
+
+    // matched pair session
+    void runSession(sockpp::tcp_socket *p0, sockpp::tcp_socket *p1);
+    void handleLine(GameSession &session, sockpp::tcp_socket *sockets[2], int playerIdx, const std::string &line);
+    void pushToAll(GameSession &session, sockpp::tcp_socket *sockets[2]);
 };

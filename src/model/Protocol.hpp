@@ -2,6 +2,7 @@
 #define PROTOCOL_HPP
 
 #include <glaze/glaze.hpp>
+#include <iostream>
 #include <string>
 
 namespace Protocol {
@@ -29,7 +30,8 @@ struct Header {
 
 inline MsgType peek_type(const std::string &json) {
     Header h;
-    auto err = glz::read<glz::opts{}>(h, json);
+    constexpr static auto opts = glz::opts{.error_on_unknown_keys = false};
+    auto err = glz::read<opts>(h, json);
     // TODO: we need to decide upon unified error handling
     if (err)
         throw std::runtime_error("[protocol]: failed to get type");
@@ -106,7 +108,9 @@ struct ServerError {
 template <typename T>
 std::string to_json(const T &msg) {
     std::string out;
-    glz::write_json(msg, out);
+    auto ec = glz::write_json(msg, out);
+    if (ec)
+        std::cerr << "[protocol] failed to serialize json: " << glz::format_error(ec, out) << std::endl;
     out += "\n"; // since we're sending in plaintext over TCP
     return out;
 }
@@ -114,7 +118,9 @@ std::string to_json(const T &msg) {
 template <typename T>
 T from_json(const std::string &json) {
     T out;
-    glz::read_json(out, json);
+    auto ec = glz::read_json(out, json);
+    if (ec)
+        std::cerr << "[protocol] failed to parse json: " << glz::format_error(ec, json) << std::endl;
     return out;
 }
 

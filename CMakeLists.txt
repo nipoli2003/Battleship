@@ -91,10 +91,11 @@ endif()
 add_executable(battleship_server
     src/main_server.cpp
     src/network/Server.cpp
+    src/network/GameSession.cpp
 )
 
 target_include_directories(battleship_server PRIVATE src)
-target_link_libraries(battleship_server PRIVATE sockpp-static pthread glaze::glaze)
+target_link_libraries(battleship_server PRIVATE battleship_core sockpp-static pthread)
 
 # ---------------------------------------------------------
 # Unit Testing
