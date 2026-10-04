@@ -10,32 +10,32 @@ constexpr int BUFFER_SIZE = 4096;
 constexpr int LOBBY_TTL_S = 60; // seconds before an unjoined lobby is reaped
 
 class GameServer {
-public:
-  GameServer() = default;
-  void run(int port);
+  public:
+    GameServer() = default;
+    void run(int port);
 
-private:
-  struct LobbyEntry {
-    sockpp::tcp_socket *socket;
-    std::chrono::steady_clock::time_point created_at;
-  };
+  private:
+    struct LobbyEntry {
+        sockpp::tcp_socket *socket;
+        std::chrono::steady_clock::time_point created_at;
+    };
 
-  std::mutex m_mutex;
-  std::unordered_map<std::string, LobbyEntry> m_registry;
+    std::mutex m_mutex;
+    std::unordered_map<std::string, LobbyEntry> m_registry;
 
-  static std::string make_code();
-  static std::string trim(std::string s);
-  static void send_msg(sockpp::tcp_socket &sock, const std::string &msg);
+    static std::string make_code();
+    static std::string trim(std::string s);
+    static void send_msg(sockpp::tcp_socket &sock, const std::string &msg);
 
-  // relay functions (relay, without inspection)
-  static void relay(sockpp::tcp_socket *src, sockpp::tcp_socket *dst);
-  static void run_pair(sockpp::tcp_socket *p0, sockpp::tcp_socket *p1);
+    // relay functions (relay, without inspection)
+    static void relay(sockpp::tcp_socket *src, sockpp::tcp_socket *dst);
+    static void run_pair(sockpp::tcp_socket *p0, sockpp::tcp_socket *p1);
 
-  // evicts unjoined lobbies after TTL
-  void reaper();
+    // evicts unjoined lobbies after TTL
+    void reaper();
 
-  // client handshake
-  void handle_client(sockpp::tcp_socket sock);
-  void handle_new(sockpp::tcp_socket sock);
-  void handle_join(sockpp::tcp_socket sock, const std::string &code);
+    // client handshake
+    void handle_client(sockpp::tcp_socket sock);
+    void handle_new(sockpp::tcp_socket sock);
+    void handle_join(sockpp::tcp_socket sock, const std::string &code);
 };
