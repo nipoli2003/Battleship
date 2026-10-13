@@ -1,8 +1,8 @@
 #ifndef PROTOCOL_HPP
 #define PROTOCOL_HPP
 
+#include "helpers/logger.hpp"
 #include <glaze/glaze.hpp>
-#include <iostream>
 #include <string>
 
 namespace Protocol {
@@ -119,7 +119,7 @@ std::string to_json(const T &msg) {
     std::string out;
     auto ec = glz::write_json(msg, out);
     if (ec)
-        std::cerr << "[protocol] failed to serialize json: " << glz::format_error(ec, out) << std::endl;
+        BS_WARN << "[protocol] failed to serialize json: " << glz::format_error(ec, out);
     out += "\n"; // since we're sending in plaintext over TCP
     return out;
 }
@@ -129,7 +129,7 @@ T from_json(const std::string &json) {
     T out;
     auto ec = glz::read_json(out, json);
     if (ec)
-        std::cerr << "[protocol] failed to parse json: " << glz::format_error(ec, json) << std::endl;
+        BS_WARN << "[protocol] failed to parse json: " << glz::format_error(ec, json);
     return out;
 }
 

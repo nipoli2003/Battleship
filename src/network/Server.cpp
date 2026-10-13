@@ -1,17 +1,17 @@
 #include "network/Server.hpp"
-#include <iostream>
 #include <random>
 #include <thread>
+#include <helpers/logger.hpp>
 
 void GameServer::run(int port) {
     sockpp::tcp_acceptor acc;
     acc.open(sockpp::inet_address(port), 4, SO_REUSEPORT);
     if (!acc) {
         // TODO: how to get error
-        std::cerr << "[server] error: could not create tcp acceptor\n";
+        BS_ERROR << "could not create tcp acceptor";
         return;
     }
-    std::cout << "[server] linstening on port " << port << "\n";
+    BS_INFO << "linstening on port " << port;
 
     std::thread(&GameServer::reaper, this).detach();
 
@@ -55,7 +55,7 @@ void GameServer::reaper() {
         for (auto it = m_registry.begin(); it != m_registry.end();) {
             auto age = std::chrono::duration_cast<std::chrono::seconds>(now - it->second.created_at).count();
             if (age >= LOBBY_TTL_S) {
-                std::cout << "[reaper] Expiring lobby " << it->first << "\n";
+                BS_INFO << "[reaper] Expiring lobby " << it->first;
                 if (it->second.socket) { // check: when initializing, socket is null
                     sendLine(*it->second.socket,
                              Protocol::to_json(Protocol::LobbyError{.error = "Lobby expired"}));
@@ -89,7 +89,7 @@ void GameServer::handle_client(sockpp::tcp_socket sock) {
 
     std::string line = readLine(client->socket);
     if (line.empty()) {
-        std::cerr << "[server] empty message\n";
+        BS_WARN << "empty message";
         return;
     }
 
@@ -97,7 +97,7 @@ void GameServer::handle_client(sockpp::tcp_socket sock) {
     try {
         type = Protocol::peek_type(line);
     } catch (...) {
-        std::cerr << "[server] bad message: " << line << std::endl;
+        BS_WARN << "bad message: " << line;
         return;
     }
 
@@ -107,7 +107,7 @@ void GameServer::handle_client(sockpp::tcp_socket sock) {
         auto msg = Protocol::from_json<Protocol::JoinLobby>(line);
         handle_join(std::move(client), msg.code);
     } else {
-        std::cerr << "[server] unknown message type: " << static_cast<int>(type) << std::endl;
+        BS_WARN << "unknown message type: " << static_cast<int>(type);
     }
 }
 
@@ -121,7 +121,7 @@ void GameServer::handle_new(ClientPtr client) {
         m_registry[code] = {client, std::chrono::steady_clock::now()};
     }
     sendLine(*client, Protocol::to_json(Protocol::LobbyCode{.code = code}));
-    std::cout << "[+] Lobby created: " << code << "\n";
+    BS_INFO << "[+] Lobby created: " << code;
 }
 
 void GameServer::handle_join(ClientPtr client, const std::string &code) {
@@ -141,7 +141,7 @@ void GameServer::handle_join(ClientPtr client, const std::string &code) {
     }
 
     // sendLine(*p1, Protocol::to_json(Protocol::LobbyJoined{})); // notified later in runSession
-    std::cout << "[+] Lobby joined: " << code << "\n";
+    BS_INFO << "[+] Lobby joined: " << code;
     std::thread(&GameServer::runSession, this, p0, std::move(client)).detach();
 }
 
@@ -188,7 +188,7 @@ void GameServer::runSession(ClientPtr p0,  ClientPtr p1) {
     t0.join();
     t1.join();
 
-    std::cout << "[session] ended\n";
+    BS_INFO << "[session] ended";
     // clients[] go out of scope and are destroyed
 }
 

@@ -1,6 +1,6 @@
 #include "view/AudioManager.hpp"
 #include <chrono>
-#include <iostream>
+#include <helpers/logger.hpp>
 
 AudioManager::AudioManager()
     : m_rng(static_cast<unsigned int>(std::chrono::steady_clock::now().time_since_epoch().count())) {}
@@ -53,7 +53,7 @@ void AudioManager::loadSoundVariationsSafe(SoundEffect id, const std::vector<std
             }
         }
         // Missing files are safely skipped without throwing errors or corrupting memory
-        std::cout << "[AudioManager] Asset missing/skipped: " << path << std::endl;
+        BS_DEBUG << "Asset missing/skipped: " << path;
     }
 }
 
@@ -65,7 +65,7 @@ void AudioManager::loadMusicSafe(MusicTrack id, const std::string& path) {
             return;
         }
     }
-    std::cout << "[AudioManager] Music missing/skipped: " << path << std::endl;
+    BS_DEBUG << "Music missing/skipped: " << path;
 }
 
 void AudioManager::update() {

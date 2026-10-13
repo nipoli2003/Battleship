@@ -1,4 +1,5 @@
 #include "network/Client.hpp"
+#include "helpers/logger.hpp"
 
 bool NetworkClient::connect(std::string ip, int port) {
     if (isConnected())
@@ -7,7 +8,7 @@ bool NetworkClient::connect(std::string ip, int port) {
     sockpp::tcp_connector conn({ip, static_cast<in_port_t>(port)});
     if (!conn) {
         // TOOD: how to get error?
-        std::cerr << "[client] connection failed\n";
+        BS_ERROR << "[client] connection failed";
         return false;
     }
     m_sock = std::move(conn);
@@ -81,7 +82,7 @@ void NetworkClient::dispatch(const std::string &line) {
     try {
         type = Protocol::peek_type(line);
     } catch (...) {
-        std::cerr << "[client] bad message: " << line << std::endl;
+        BS_WARN << "[client] bad message: " << line;
         return;
     }
 
@@ -103,6 +104,6 @@ void NetworkClient::dispatch(const std::string &line) {
         auto msg = Protocol::from_json<Protocol::GameOver>(line);
         onGameOver(msg);
     } else {
-        std::cerr << "[client] unknown message: " << line << std::endl;
+        BS_WARN << "[client] unknown message: " << line;
     }
 }
