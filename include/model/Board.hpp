@@ -9,14 +9,20 @@ struct Coordinate {
     int x{0}; // Column (0 to 9)
     int y{0}; // Row (0 to 9)
 
-    bool operator==(const Coordinate& other) const = default;
+    bool operator==(const Coordinate& other) const noexcept {
+        return x == other.x && y == other.y;
+    }
 };
 
 enum class CellState {
     Empty,
-    ShipPresent,
     Hit,
-    Miss
+    Miss,
+    Carrier,
+    Battleship,
+    Cruiser,
+    Submarine,
+    Destroyer
 };
 
 enum class AttackResult {
@@ -39,6 +45,8 @@ public:
     AttackResult receiveAttack(Coordinate target);
     [[nodiscard]] bool allShipsSunk() const noexcept;
 
+    bool hasShipAt(int x, int y) const noexcept;
+    [[nodiscard]] std::optional<std::shared_ptr<Ship>> getShipAt(int x, int y) const noexcept;
     void reset();
 
 private:
