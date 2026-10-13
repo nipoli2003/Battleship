@@ -11,7 +11,7 @@ int main() {
 
     while (!view.shouldClose()) {
         float dt = GetFrameTime();
-        engine.update(dt);
+        // engine.update(dt);
         view.render();
         AudioManager::instance().update();
     }

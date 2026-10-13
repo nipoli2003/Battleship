@@ -1,9 +1,9 @@
 #include "view/GraphicalView.hpp"
 #include <algorithm>
+#include <cmath>
 #include <optional>
 #include <random>
 #include <string>
-#include <cmath>
 
 const std::vector<ShipType> GraphicalView::SHIP_ORDER = {
     ShipType::Carrier,
@@ -92,9 +92,9 @@ void GraphicalView::resetToMenu() {
 }
 
 // Helper that renders a 0-100 slider and handles drag input mapped to virtual space
-bool GraphicalView::drawSlider(Rectangle bounds, const char* label, int& value, bool& isDragging) {
+bool GraphicalView::drawSlider(Rectangle bounds, const char *label, int &value, bool &isDragging) {
     Vector2 mouse = getVirtualMousePosition();
-    
+
     // Label and numeric readout
     DrawText(label, bounds.x, bounds.y - 22, 18, RAYWHITE);
     std::string valStr = std::to_string(value) + "%";
@@ -171,7 +171,7 @@ void GraphicalView::renderSettingsModal() {
     DrawRectangleLinesEx(modalRec, 2, SKYBLUE);
 
     // Modal Header
-    const char* header = "AUDIO & SETTINGS";
+    const char *header = "AUDIO & SETTINGS";
     int headerSize = 24;
     DrawText(header, modalX + (modalW - MeasureText(header, headerSize)) / 2.0f, modalY + 25.0f, headerSize, RAYWHITE);
 
@@ -212,9 +212,9 @@ void GraphicalView::render() {
     ClearBackground(Color{15, 25, 35, 255});
 
     switch (m_currentScene) {
-        case AppScene::TitleScreen:
-            renderTitleScreen();
-            break;
+    case AppScene::TitleScreen:
+        renderTitleScreen();
+        break;
     case AppScene::MainMenu:
         renderMainMenu();
         break;
@@ -244,6 +244,7 @@ void GraphicalView::render() {
             renderGame();
         break;
     }
+    }
 
     // --- MOVE INSIDE TEXTURE MODE: Render modal on top of virtual buffer ---
     if (m_showSettingsModal) {
@@ -268,8 +269,7 @@ void GraphicalView::render() {
         (GetScreenWidth() - (VIRTUAL_WIDTH * scale)) * 0.5f,
         (GetScreenHeight() - (VIRTUAL_HEIGHT * scale)) * 0.5f,
         VIRTUAL_WIDTH * scale,
-        VIRTUAL_HEIGHT * scale
-    };
+        VIRTUAL_HEIGHT * scale};
 
     DrawTexturePro(m_target.texture, srcRec, destRec, Vector2{0.0f, 0.0f}, 0.0f, WHITE);
     EndDrawing();
@@ -280,19 +280,19 @@ void GraphicalView::renderTitleScreen() {
     float time = static_cast<float>(GetTime());
 
     // 1. Temporary Geometric Background
-    DrawRectangleGradientV(0, 0, VIRTUAL_WIDTH, VIRTUAL_HEIGHT, 
+    DrawRectangleGradientV(0, 0, VIRTUAL_WIDTH, VIRTUAL_HEIGHT,
                            Color{10, 20, 32, 255}, Color{5, 10, 18, 255});
     for (int y = 200; y < VIRTUAL_HEIGHT - 80; y += 40) {
         DrawLine(0, y, VIRTUAL_WIDTH, y, Color{25, 45, 65, 80});
     }
 
     // 2. Subtitle / Theme Banner
-    const char* subtitle = "* * *   CLASH OF THE DREADNOUGHTS   * * *";
+    const char *subtitle = "* * *   CLASH OF THE DREADNOUGHTS   * * *";
     int subSize = 20;
     DrawText(subtitle, (VIRTUAL_WIDTH - MeasureText(subtitle, subSize)) / 2, 190, subSize, SKYBLUE);
 
     // 3. Main Title Box & Banner
-    const char* title = "B A T T L E S H I P";
+    const char *title = "B A T T L E S H I P";
     int titleSize = 58;
     int titleW = MeasureText(title, titleSize);
     int titleBoxW = titleW + 60;
@@ -301,13 +301,14 @@ void GraphicalView::renderTitleScreen() {
     int titleBoxY = 240;
 
     DrawRectangle(titleBoxX, titleBoxY, titleBoxW, titleBoxH, Color{18, 30, 44, 230});
-    DrawRectangleLinesEx(Rectangle{static_cast<float>(titleBoxX), static_cast<float>(titleBoxY), 
-                                   static_cast<float>(titleBoxW), static_cast<float>(titleBoxH)}, 2, SKYBLUE);
+    DrawRectangleLinesEx(Rectangle{static_cast<float>(titleBoxX), static_cast<float>(titleBoxY),
+                                   static_cast<float>(titleBoxW), static_cast<float>(titleBoxH)},
+                         2, SKYBLUE);
     DrawText(title, (VIRTUAL_WIDTH - titleW) / 2, titleBoxY + 16, titleSize, RAYWHITE);
 
     // 4. Pulsing prompt
     float pulseAlpha = 0.35f + 0.65f * (0.5f * (std::sin(time * 3.5f) + 1.0f));
-    const char* prompt = "[ PRESS ANY BUTTON TO PLAY ]";
+    const char *prompt = "[ PRESS ANY BUTTON TO PLAY ]";
     int promptSize = 24;
     Color promptColor = Fade(RAYWHITE, pulseAlpha);
     DrawText(prompt, (VIRTUAL_WIDTH - MeasureText(prompt, promptSize)) / 2, 420, promptSize, promptColor);
@@ -319,7 +320,7 @@ void GraphicalView::renderTitleScreen() {
 
     // 6. Footer Telemetry
     DrawText("[F / F11: Fullscreen]", 40, VIRTUAL_HEIGHT - 32, 16, DARKGRAY);
-    const char* version = "Version 1.0";
+    const char *version = "Version 1.0";
     DrawText(version, VIRTUAL_WIDTH - MeasureText(version, 16) - 40, VIRTUAL_HEIGHT - 32, 16, DARKGRAY);
 
     // 7. Transition Input Handling
@@ -332,8 +333,6 @@ void GraphicalView::renderTitleScreen() {
 }
 
 void GraphicalView::renderMainMenu() {
-    const char* title = "BATTLESHIP";
-    DrawText(title, (VIRTUAL_WIDTH - MeasureText(title, 96)) / 2, VIRTUAL_HEIGHT / 4 - 30, 96, SKYBLUE);
     const char *title = "BATTLESHIP";
     DrawText(title, (VIRTUAL_WIDTH - MeasureText(title, 96)) / 2, VIRTUAL_HEIGHT / 4, 96, SKYBLUE);
 
@@ -369,7 +368,7 @@ void GraphicalView::renderMainMenu() {
         m_currentScene = AppScene::OnlineLobbyWait;
     }
 
-    Rectangle btnExit{(VIRTUAL_WIDTH - btnW) / 2.0f, startY + 130.0f, btnW, btnH};
+    Rectangle btnExit{(VIRTUAL_WIDTH - bw) / 2.0f, by + 130.0f, bw, bh};
     bool hovExit = !m_showSettingsModal && CheckCollisionPointRec(mouse, btnExit);
     drawButton(btnExit, "Exit Game", hovExit);
     if (hovExit && IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
@@ -509,7 +508,8 @@ void GraphicalView::drawLocalBoard(int startX, int startY) {
             Rectangle cell{(float)(startX + x * CELL_SIZE), (float)(startY + y * CELL_SIZE),
                            (float)CELL_SIZE, (float)CELL_SIZE};
             Color fill = Color{20, 40, 60, 255};
-            if (m_localBoard.getCell(x, y) == CellState::ShipPresent)
+            CellState cs = m_localBoard.getCell(x, y);
+            if (cs != CellState::Empty && cs != CellState::Hit && cs != CellState::Miss)
                 fill = DARKGRAY;
             DrawRectangleRec(cell, fill);
             DrawRectangleLinesEx(cell, 1, Color{50, 75, 100, 255});
@@ -615,22 +615,22 @@ void GraphicalView::drawGrid(int startX, int startY, const std::vector<int> &cel
             Rectangle cell{(float)(startX + x * CELL_SIZE), (float)(startY + y * CELL_SIZE),
                            (float)CELL_SIZE, (float)CELL_SIZE};
             Color fill = Color{20, 40, 60, 255};
-            if (cs == CellState::ShipPresent && !hideShips)
+            if (!hideShips && cs != CellState::Empty && cs != CellState::Hit && cs != CellState::Miss)
                 fill = DARKGRAY;
             else if (cs == CellState::Hit) {
                 fill = RED;
 
-                                auto shipOpt = board.getShipAt(x, y);
-                if (shipOpt && *shipOpt) {
-                    switch ((*shipOpt)->type()) {
-                        case ShipType::Carrier:    fill = RED;     break;
-                        case ShipType::Battleship: fill = ORANGE;  break;
-                        case ShipType::Cruiser:    fill = YELLOW;  break;
-                        case ShipType::Submarine:  fill = GREEN;   break;
-                        case ShipType::Destroyer:  fill = BLUE;    break;
-                    }
-                }
-            }else if (cs == CellState::Miss)
+                // auto shipOpt = board.getShipAt(x, y);
+                // if (shipOpt && *shipOpt) {
+                //     switch ((*shipOpt)->type()) {
+                //         case ShipType::Carrier:    fill = RED;     break;
+                //         case ShipType::Battleship: fill = ORANGE;  break;
+                //         case ShipType::Cruiser:    fill = YELLOW;  break;
+                //         case ShipType::Submarine:  fill = GREEN;   break;
+                //         case ShipType::Destroyer:  fill = BLUE;    break;
+                //     }
+                // }
+            } else if (cs == CellState::Miss)
                 fill = WHITE;
             if (isEnemy && cs != CellState::Hit && cs != CellState::Miss && CheckCollisionPointRec(mouse, cell))
                 fill = Color{40, 80, 120, 255};
@@ -679,10 +679,9 @@ void GraphicalView::renderGame() {
 
     // BLOCK INPUT IF SETTINGS MODAL IS OPEN
     if (!m_showSettingsModal) {
-        // if (state == "YourTurn")
-        if (snapshot.state == MatchState::PlayerTurn) {
+        if (state == "YourTurn")
+            // if (snapshot.state == MatchState::PlayerTurn) {
             handleBoardClicks(egx, gy);
-        }
     }
 
     Rectangle btnLeave{20.f, 20.f, 100.f, 35.f};

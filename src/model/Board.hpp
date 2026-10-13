@@ -22,7 +22,8 @@ enum class CellState {
     Battleship,
     Cruiser,
     Submarine,
-    Destroyer
+    Destroyer,
+    ShipPresent
 };
 
 enum class AttackResult {
