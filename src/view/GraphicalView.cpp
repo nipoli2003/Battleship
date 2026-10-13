@@ -1,4 +1,5 @@
 #include "view/GraphicalView.hpp"
+#include "view/AudioManager.hpp"
 #include <algorithm>
 #include <cmath>
 #include <optional>
@@ -177,13 +178,14 @@ void GraphicalView::renderSettingsModal() {
 
     // 3. Sliders (0-100)
     Rectangle musicSliderRec{modalX + 40.0f, modalY + 105.0f, modalW - 80.0f, 12.0f};
-    drawSlider(musicSliderRec, "Music Volume", m_musicVolume, m_draggingMusic);
+    if (drawSlider(musicSliderRec, "Music Volume", m_musicVolume, m_draggingMusic)) {
+        AudioManager::instance().setMusicVolume(m_musicVolume / 100.0f);
+    }
 
     Rectangle sfxSliderRec{modalX + 40.0f, modalY + 175.0f, modalW - 80.0f, 12.0f};
-    drawSlider(sfxSliderRec, "SFX Volume", m_sfxVolume, m_draggingSFX);
-
-    // Optional: Feed volume updates into your Audio Engine / Raylib masters
-    // SetMasterVolume(m_musicVolume / 100.0f);
+    if (drawSlider(sfxSliderRec, "SFX Volume", m_sfxVolume, m_draggingSFX)) {
+        AudioManager::instance().setSFXVolume(m_sfxVolume / 100.0f);
+    }
 
     // 4. Close / Apply Button
     Rectangle btnClose{modalX + (modalW - 160.0f) / 2.0f, modalY + modalH - 65.0f, 160.0f, 40.0f};
@@ -341,7 +343,7 @@ void GraphicalView::renderMainMenu() {
     float by = VIRTUAL_HEIGHT / 2.f - 60.f;
 
     Rectangle btnCreate{bx, by, bw, bh};
-    bool hovCreate = CheckCollisionPointRec(mouse, btnCreate);
+    bool hovCreate = !m_showSettingsModal && CheckCollisionPointRec(mouse, btnCreate);
     drawButton(btnCreate, "Create Lobby", hovCreate);
     if (hovCreate && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
         m_isCreating = true;
@@ -355,7 +357,7 @@ void GraphicalView::renderMainMenu() {
     }
 
     Rectangle btnJoin{bx, by + 65.f, bw, bh};
-    bool hovJoin = CheckCollisionPointRec(mouse, btnJoin);
+    bool hovJoin = !m_showSettingsModal && CheckCollisionPointRec(mouse, btnJoin);
     drawButton(btnJoin, "Join Lobby", hovJoin);
     if (hovJoin && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
         m_isCreating = false;
@@ -396,9 +398,9 @@ void GraphicalView::renderLobbySetup() {
     DrawRectangleRec(ipBox, Color{10, 20, 35, 255});
     DrawRectangleLinesEx(ipBox, 2, ipSel ? SKYBLUE : LIGHTGRAY);
     DrawText(m_ipInput.c_str(), (int)(ipBox.x + 8), (int)(ipBox.y + 10), 20, RAYWHITE);
-    if (CheckCollisionPointRec(mouse, ipBox) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
+    if (!m_showSettingsModal && CheckCollisionPointRec(mouse, ipBox) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
         m_activeInputField = 0;
-    if (ipSel)
+    if (ipSel && !m_showSettingsModal)
         handleTextInput(m_ipInput, 64);
 
     float nextY = 290.f;
@@ -411,16 +413,16 @@ void GraphicalView::renderLobbySetup() {
         DrawRectangleRec(codeBox, Color{10, 20, 35, 255});
         DrawRectangleLinesEx(codeBox, 2, codeSel ? SKYBLUE : LIGHTGRAY);
         DrawText(m_codeInput.c_str(), (int)(codeBox.x + 8), (int)(codeBox.y + 10), 20, RAYWHITE);
-        if (CheckCollisionPointRec(mouse, codeBox) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
+        if (!m_showSettingsModal && CheckCollisionPointRec(mouse, codeBox) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
             m_activeInputField = 1;
-        if (codeSel)
+        if (codeSel && !m_showSettingsModal)
             handleTextInput(m_codeInput, 6);
         nextY += 80.f;
     }
 
     // Connect button
     Rectangle btnConn{(VIRTUAL_WIDTH - 220.f) / 2.f, nextY + 20.f, 220.f, 45.f};
-    bool hovConn = CheckCollisionPointRec(mouse, btnConn);
+    bool hovConn = !m_showSettingsModal && CheckCollisionPointRec(mouse, btnConn);
     drawButton(btnConn, m_isCreating ? "Connect & Create" : "Connect & Join", hovConn);
     if (hovConn && IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && !m_ipInput.empty()) {
         if (m_isCreating)
@@ -431,7 +433,7 @@ void GraphicalView::renderLobbySetup() {
 
     // Back button
     Rectangle btnBack{(VIRTUAL_WIDTH - 200.f) / 2.f, nextY + 80.f, 200.f, 45.f};
-    bool hovBack = CheckCollisionPointRec(mouse, btnBack);
+    bool hovBack = !m_showSettingsModal && CheckCollisionPointRec(mouse, btnBack);
     drawButton(btnBack, "Back to Menu", hovBack);
     if (hovBack && IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
         m_currentScene = AppScene::MainMenu;
@@ -469,7 +471,7 @@ void GraphicalView::renderLobbyWait() {
 
     Vector2 mouse = getVirtualMousePosition();
     Rectangle btnBack{(VIRTUAL_WIDTH - 200.f) / 2.f, 430.f, 200.f, 45.f};
-    bool hovBack = CheckCollisionPointRec(mouse, btnBack);
+    bool hovBack = !m_showSettingsModal && CheckCollisionPointRec(mouse, btnBack);
     drawButton(btnBack, "Back to Menu", hovBack);
     if (hovBack && IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
         resetToMenu();
@@ -572,7 +574,7 @@ void GraphicalView::renderPlacement() {
                 if (cx < Board::SIZE && cy < Board::SIZE)
                     DrawRectangle(gx + cx * CELL_SIZE, gy + cy * CELL_SIZE, CELL_SIZE, CELL_SIZE, ghost);
             }
-            if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && valid) {
+            if (!m_showSettingsModal && IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && valid) {
                 auto ship = std::make_shared<Ship>(*currentType, m_placementOrientation);
                 m_localBoard.placeShip(ship, {hx, hy});
                 m_pendingPlacements.push_back({(int)*currentType, hx, hy,
@@ -583,7 +585,7 @@ void GraphicalView::renderPlacement() {
 
     // Auto-Deploy
     Rectangle btnAuto{(float)(gx + gw + 30), (float)(gy + 50), 160.f, 40.f};
-    bool hovAuto = CheckCollisionPointRec(mouse, btnAuto);
+    bool hovAuto = !m_showSettingsModal && CheckCollisionPointRec(mouse, btnAuto);
     drawButton(btnAuto, "Auto-Deploy", hovAuto);
     if (hovAuto && IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
         randomizeLocalFleet();
@@ -591,7 +593,7 @@ void GraphicalView::renderPlacement() {
     // Confirm (all ships placed)
     if (m_pendingPlacements.size() == SHIP_ORDER.size()) {
         Rectangle btnConf{(float)(gx + gw + 30), (float)(gy + 110), 160.f, 40.f};
-        bool hovConf = CheckCollisionPointRec(mouse, btnConf);
+        bool hovConf = !m_showSettingsModal && CheckCollisionPointRec(mouse, btnConf);
         drawButton(btnConf, "Confirm", hovConf);
         if (hovConf && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
             m_client->sendPlaceShips(m_pendingPlacements);
@@ -677,15 +679,8 @@ void GraphicalView::renderGame() {
     drawGrid(hgx, gy, your, false, false);
     drawGrid(egx, gy, enemy, true, true);
 
-    // BLOCK INPUT IF SETTINGS MODAL IS OPEN
-    if (!m_showSettingsModal) {
-        if (state == "YourTurn")
-            // if (snapshot.state == MatchState::PlayerTurn) {
-            handleBoardClicks(egx, gy);
-    }
-
     Rectangle btnLeave{20.f, 20.f, 100.f, 35.f};
-    bool hovLeave = CheckCollisionPointRec(getVirtualMousePosition(), btnLeave);
+    bool hovLeave = !m_showSettingsModal && CheckCollisionPointRec(getVirtualMousePosition(), btnLeave);
     drawButton(btnLeave, "< Menu", hovLeave);
     if (hovLeave && IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
         resetToMenu();
