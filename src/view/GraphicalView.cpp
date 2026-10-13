@@ -3,6 +3,7 @@
 #include <optional>
 #include <random>
 #include <string>
+#include <cmath>
 
 const std::vector<ShipType> GraphicalView::SHIP_ORDER = {
     ShipType::Carrier,
@@ -90,7 +91,111 @@ void GraphicalView::resetToMenu() {
     m_currentScene = AppScene::MainMenu;
 }
 
-// ------------------------------------------------------------------ render
+// Helper that renders a 0-100 slider and handles drag input mapped to virtual space
+bool GraphicalView::drawSlider(Rectangle bounds, const char* label, int& value, bool& isDragging) {
+    Vector2 mouse = getVirtualMousePosition();
+    
+    // Label and numeric readout
+    DrawText(label, bounds.x, bounds.y - 22, 18, RAYWHITE);
+    std::string valStr = std::to_string(value) + "%";
+    DrawText(valStr.c_str(), bounds.x + bounds.width - MeasureText(valStr.c_str(), 18), bounds.y - 22, 18, SKYBLUE);
+
+    // Track Background
+    Rectangle track = bounds;
+    DrawRectangleRounded(track, 0.4f, 4, Color{30, 45, 60, 255});
+    DrawRectangleRoundedLines(track, 0.4f, 4, DARKGRAY);
+
+    // Filled Active Bar
+    float fillWidth = (static_cast<float>(value) / 100.0f) * bounds.width;
+    Rectangle filledTrack{bounds.x, bounds.y, fillWidth, bounds.height};
+    DrawRectangleRounded(filledTrack, 0.4f, 4, SKYBLUE);
+
+    // Slider Knob Handle
+    Vector2 knobCenter{bounds.x + fillWidth, bounds.y + bounds.height / 2.0f};
+    float knobRadius = bounds.height * 0.75f;
+    bool knobHovered = CheckCollisionPointCircle(mouse, knobCenter, knobRadius);
+
+    // Interaction handling: start dragging on press within track/knob
+    Rectangle hitArea{bounds.x - knobRadius, bounds.y - 5.0f, bounds.width + 2.0f * knobRadius, bounds.height + 10.0f};
+    if (CheckCollisionPointRec(mouse, hitArea) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+        isDragging = true;
+    }
+
+    if (isDragging) {
+        if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+            float normalized = (mouse.x - bounds.x) / bounds.width;
+            normalized = std::clamp(normalized, 0.0f, 1.0f);
+            value = static_cast<int>(normalized * 100.0f);
+        } else {
+            isDragging = false;
+        }
+    }
+
+    DrawCircleV(knobCenter, knobRadius, (isDragging || knobHovered) ? WHITE : LIGHTGRAY);
+    DrawCircleLines(knobCenter.x, knobCenter.y, knobRadius, DARKBLUE);
+
+    return isDragging;
+}
+
+// Universal Settings Cog button matching Chapter 2 mockups
+void GraphicalView::drawSettingsTriggerButton(float x, float y) {
+    Vector2 mouse = getVirtualMousePosition();
+    Rectangle cogBounds{x, y, 130.0f, 30.0f};
+    bool hovered = CheckCollisionPointRec(mouse, cogBounds);
+
+    // Render icon [*] and label
+    DrawCircle(cogBounds.x + 12.0f, cogBounds.y + 15.0f, 9.0f, hovered ? SKYBLUE : LIGHTGRAY);
+    DrawCircle(cogBounds.x + 12.0f, cogBounds.y + 15.0f, 4.0f, Color{15, 25, 35, 255});
+    DrawText("Settings", cogBounds.x + 28.0f, cogBounds.y + 6.0f, 18, hovered ? SKYBLUE : LIGHTGRAY);
+
+    if (hovered && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+        m_showSettingsModal = true;
+    }
+}
+
+void GraphicalView::renderSettingsModal() {
+    Vector2 mouse = getVirtualMousePosition();
+
+    // 1. Semi-transparent backdrop overlay to dim the active scene
+    DrawRectangle(0, 0, VIRTUAL_WIDTH, VIRTUAL_HEIGHT, Color{0, 0, 0, 190});
+
+    // 2. Modal Box dimensions
+    float modalW = 460.0f;
+    float modalH = 340.0f;
+    float modalX = (VIRTUAL_WIDTH - modalW) / 2.0f;
+    float modalY = (VIRTUAL_HEIGHT - modalH) / 2.0f;
+    Rectangle modalRec{modalX, modalY, modalW, modalH};
+
+    // Body & Border
+    DrawRectangleRec(modalRec, Color{20, 32, 45, 255});
+    DrawRectangleLinesEx(modalRec, 2, SKYBLUE);
+
+    // Modal Header
+    const char* header = "AUDIO & SETTINGS";
+    int headerSize = 24;
+    DrawText(header, modalX + (modalW - MeasureText(header, headerSize)) / 2.0f, modalY + 25.0f, headerSize, RAYWHITE);
+
+    // 3. Sliders (0-100)
+    Rectangle musicSliderRec{modalX + 40.0f, modalY + 105.0f, modalW - 80.0f, 12.0f};
+    drawSlider(musicSliderRec, "Music Volume", m_musicVolume, m_draggingMusic);
+
+    Rectangle sfxSliderRec{modalX + 40.0f, modalY + 175.0f, modalW - 80.0f, 12.0f};
+    drawSlider(sfxSliderRec, "SFX Volume", m_sfxVolume, m_draggingSFX);
+
+    // Optional: Feed volume updates into your Audio Engine / Raylib masters
+    // SetMasterVolume(m_musicVolume / 100.0f);
+
+    // 4. Close / Apply Button
+    Rectangle btnClose{modalX + (modalW - 160.0f) / 2.0f, modalY + modalH - 65.0f, 160.0f, 40.0f};
+    bool hovClose = CheckCollisionPointRec(mouse, btnClose);
+    drawButton(btnClose, "Close", hovClose);
+
+    if ((hovClose && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) || IsKeyPressed(KEY_ESCAPE)) {
+        m_showSettingsModal = false;
+        m_draggingMusic = false;
+        m_draggingSFX = false;
+    }
+}
 
 void GraphicalView::render() {
     handleFullscreenToggle();
@@ -107,6 +212,9 @@ void GraphicalView::render() {
     ClearBackground(Color{15, 25, 35, 255});
 
     switch (m_currentScene) {
+        case AppScene::TitleScreen:
+            renderTitleScreen();
+            break;
     case AppScene::MainMenu:
         renderMainMenu();
         break;
@@ -136,27 +244,96 @@ void GraphicalView::render() {
             renderGame();
         break;
     }
+
+    // --- MOVE INSIDE TEXTURE MODE: Render modal on top of virtual buffer ---
+    if (m_showSettingsModal) {
+        renderSettingsModal();
     }
 
-    EndTextureMode();
+    EndTextureMode(); // Finish drawing to virtual canvas
 
     BeginDrawing();
     ClearBackground(BLACK);
 
-    float scale = std::min((float)GetScreenWidth() / VIRTUAL_WIDTH,
-                           (float)GetScreenHeight() / VIRTUAL_HEIGHT);
-    Rectangle src = {0, 0, (float)m_target.texture.width, -(float)m_target.texture.height};
-    Rectangle dest = {
-        (GetScreenWidth() - VIRTUAL_WIDTH * scale) * 0.5f,
-        (GetScreenHeight() - VIRTUAL_HEIGHT * scale) * 0.5f,
-        VIRTUAL_WIDTH * scale, VIRTUAL_HEIGHT * scale};
-    DrawTexturePro(m_target.texture, src, dest, {0, 0}, 0, WHITE);
+    float scale = std::min(static_cast<float>(GetScreenWidth()) / VIRTUAL_WIDTH,
+                           static_cast<float>(GetScreenHeight()) / VIRTUAL_HEIGHT);
+
+    Rectangle srcRec{
+        0.0f, 0.0f,
+        static_cast<float>(m_target.texture.width),
+        -static_cast<float>(m_target.texture.height) // Invert Y for OpenGL
+    };
+
+    Rectangle destRec{
+        (GetScreenWidth() - (VIRTUAL_WIDTH * scale)) * 0.5f,
+        (GetScreenHeight() - (VIRTUAL_HEIGHT * scale)) * 0.5f,
+        VIRTUAL_WIDTH * scale,
+        VIRTUAL_HEIGHT * scale
+    };
+
+    DrawTexturePro(m_target.texture, srcRec, destRec, Vector2{0.0f, 0.0f}, 0.0f, WHITE);
     EndDrawing();
 }
 
-// ------------------------------------------------------------------ Main Menu
+void GraphicalView::renderTitleScreen() {
+    Vector2 mouse = getVirtualMousePosition();
+    float time = static_cast<float>(GetTime());
+
+    // 1. Temporary Geometric Background
+    DrawRectangleGradientV(0, 0, VIRTUAL_WIDTH, VIRTUAL_HEIGHT, 
+                           Color{10, 20, 32, 255}, Color{5, 10, 18, 255});
+    for (int y = 200; y < VIRTUAL_HEIGHT - 80; y += 40) {
+        DrawLine(0, y, VIRTUAL_WIDTH, y, Color{25, 45, 65, 80});
+    }
+
+    // 2. Subtitle / Theme Banner
+    const char* subtitle = "* * *   CLASH OF THE DREADNOUGHTS   * * *";
+    int subSize = 20;
+    DrawText(subtitle, (VIRTUAL_WIDTH - MeasureText(subtitle, subSize)) / 2, 190, subSize, SKYBLUE);
+
+    // 3. Main Title Box & Banner
+    const char* title = "B A T T L E S H I P";
+    int titleSize = 58;
+    int titleW = MeasureText(title, titleSize);
+    int titleBoxW = titleW + 60;
+    int titleBoxH = 90;
+    int titleBoxX = (VIRTUAL_WIDTH - titleBoxW) / 2;
+    int titleBoxY = 240;
+
+    DrawRectangle(titleBoxX, titleBoxY, titleBoxW, titleBoxH, Color{18, 30, 44, 230});
+    DrawRectangleLinesEx(Rectangle{static_cast<float>(titleBoxX), static_cast<float>(titleBoxY), 
+                                   static_cast<float>(titleBoxW), static_cast<float>(titleBoxH)}, 2, SKYBLUE);
+    DrawText(title, (VIRTUAL_WIDTH - titleW) / 2, titleBoxY + 16, titleSize, RAYWHITE);
+
+    // 4. Pulsing prompt
+    float pulseAlpha = 0.35f + 0.65f * (0.5f * (std::sin(time * 3.5f) + 1.0f));
+    const char* prompt = "[ PRESS ANY BUTTON TO PLAY ]";
+    int promptSize = 24;
+    Color promptColor = Fade(RAYWHITE, pulseAlpha);
+    DrawText(prompt, (VIRTUAL_WIDTH - MeasureText(prompt, promptSize)) / 2, 420, promptSize, promptColor);
+
+    // 5. Settings Cog Trigger (Clean single call)
+    Rectangle cogBounds{40.0f, static_cast<float>(VIRTUAL_HEIGHT - 65), 140.0f, 32.0f};
+    bool cogHover = CheckCollisionPointRec(mouse, cogBounds);
+    drawSettingsTriggerButton(40.0f, VIRTUAL_HEIGHT - 65.0f);
+
+    // 6. Footer Telemetry
+    DrawText("[F / F11: Fullscreen]", 40, VIRTUAL_HEIGHT - 32, 16, DARKGRAY);
+    const char* version = "Version 1.0";
+    DrawText(version, VIRTUAL_WIDTH - MeasureText(version, 16) - 40, VIRTUAL_HEIGHT - 32, 16, DARKGRAY);
+
+    // 7. Transition Input Handling
+    bool keyPressed = (GetKeyPressed() > 0) && !IsKeyPressed(KEY_F) && !IsKeyPressed(KEY_F11);
+    bool mouseClicked = IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && !cogHover;
+
+    if (!m_showSettingsModal && (keyPressed || mouseClicked)) {
+        m_currentScene = AppScene::MainMenu;
+    }
+}
 
 void GraphicalView::renderMainMenu() {
+    const char* title = "BATTLESHIP";
+    DrawText(title, (VIRTUAL_WIDTH - MeasureText(title, 96)) / 2, VIRTUAL_HEIGHT / 4 - 30, 96, SKYBLUE);
     const char *title = "BATTLESHIP";
     DrawText(title, (VIRTUAL_WIDTH - MeasureText(title, 96)) / 2, VIRTUAL_HEIGHT / 4, 96, SKYBLUE);
 
@@ -192,11 +369,16 @@ void GraphicalView::renderMainMenu() {
         m_currentScene = AppScene::OnlineLobbyWait;
     }
 
-    Rectangle btnExit{bx, by + 130.f, bw, bh};
-    bool hovExit = CheckCollisionPointRec(mouse, btnExit);
+    Rectangle btnExit{(VIRTUAL_WIDTH - btnW) / 2.0f, startY + 130.0f, btnW, btnH};
+    bool hovExit = !m_showSettingsModal && CheckCollisionPointRec(mouse, btnExit);
     drawButton(btnExit, "Exit Game", hovExit);
     if (hovExit && IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
         m_shouldExit = true;
+
+    // Bottom-left Cog
+    if (!m_showSettingsModal) {
+        drawSettingsTriggerButton(40.0f, VIRTUAL_HEIGHT - 65.0f);
+    }
 }
 
 // ------------------------------------------------------------------ Lobby Setup (text input)
@@ -333,6 +515,8 @@ void GraphicalView::drawLocalBoard(int startX, int startY) {
             DrawRectangleLinesEx(cell, 1, Color{50, 75, 100, 255});
         }
     }
+
+    drawSettingsTriggerButton(40.0f, VIRTUAL_HEIGHT - 45.0f);
 }
 
 void GraphicalView::renderPlacement() {
@@ -433,9 +617,20 @@ void GraphicalView::drawGrid(int startX, int startY, const std::vector<int> &cel
             Color fill = Color{20, 40, 60, 255};
             if (cs == CellState::ShipPresent && !hideShips)
                 fill = DARKGRAY;
-            else if (cs == CellState::Hit)
+            else if (cs == CellState::Hit) {
                 fill = RED;
-            else if (cs == CellState::Miss)
+
+                                auto shipOpt = board.getShipAt(x, y);
+                if (shipOpt && *shipOpt) {
+                    switch ((*shipOpt)->type()) {
+                        case ShipType::Carrier:    fill = RED;     break;
+                        case ShipType::Battleship: fill = ORANGE;  break;
+                        case ShipType::Cruiser:    fill = YELLOW;  break;
+                        case ShipType::Submarine:  fill = GREEN;   break;
+                        case ShipType::Destroyer:  fill = BLUE;    break;
+                    }
+                }
+            }else if (cs == CellState::Miss)
                 fill = WHITE;
             if (isEnemy && cs != CellState::Hit && cs != CellState::Miss && CheckCollisionPointRec(mouse, cell))
                 fill = Color{40, 80, 120, 255};
@@ -482,8 +677,13 @@ void GraphicalView::renderGame() {
     drawGrid(hgx, gy, your, false, false);
     drawGrid(egx, gy, enemy, true, true);
 
-    if (state == "YourTurn")
-        handleBoardClicks(egx, gy);
+    // BLOCK INPUT IF SETTINGS MODAL IS OPEN
+    if (!m_showSettingsModal) {
+        // if (state == "YourTurn")
+        if (snapshot.state == MatchState::PlayerTurn) {
+            handleBoardClicks(egx, gy);
+        }
+    }
 
     Rectangle btnLeave{20.f, 20.f, 100.f, 35.f};
     bool hovLeave = CheckCollisionPointRec(getVirtualMousePosition(), btnLeave);
@@ -602,4 +802,6 @@ void GraphicalView::onGameOver(Protocol::GameOver msg) {
     std::lock_guard lk(m_netMutex);
     m_serverState = msg.result; // "Victory" or "Defeat"
     m_statusMessage = msg.message;
+
+    drawSettingsTriggerButton(40.0f, VIRTUAL_HEIGHT - 45.0f);
 }

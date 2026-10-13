@@ -31,6 +31,7 @@ class GraphicalView : public IView {
     void resetToMenu();
 
     // scene renderers and handlers
+    void renderTitleScreen();
     void renderMainMenu();
     void renderLobbySetup();
     void renderLobbyWait();
@@ -39,6 +40,9 @@ class GraphicalView : public IView {
     void renderGameOver();
 
     // drawing helpers
+    void renderSettingsModal();
+    void drawSettingsTriggerButton(float x, float y);
+    bool drawSlider(Rectangle bounds, const char* label, int& value, bool& isDragging);
     void drawGrid(int startX, int startY, const std::vector<int> &cells, bool hideShips, bool isEnemy);
     void drawLocalBoard(int startX, int startY);
     void handleBoardClicks(int enemyStartX, int enemyStartY);
@@ -58,7 +62,7 @@ class GraphicalView : public IView {
     void onGameOver(Protocol::GameOver msg);
 
     // app state, main thread only
-    AppScene m_currentScene{AppScene::MainMenu};
+    AppScene m_currentScene{AppScene::TitleScreen};
     bool m_shouldExit{false};
     std::atomic<bool> m_pendingGameStart{false}; // set by network thread, cleared in render()
 
@@ -81,6 +85,13 @@ class GraphicalView : public IView {
     std::vector<int> m_yourBoard; // 100 ints, CellState values
     std::vector<int> m_enemyBoard;
 
+    // --- Options / Settings State ---
+    bool m_showSettingsModal{false};
+    int m_musicVolume{70};      // 0 - 100
+    int m_sfxVolume{80};        // 0 - 100
+    bool m_draggingMusic{false};
+    bool m_draggingSFX{false};
+
     // local placement state, main thread only
     Board m_localBoard;
     std::vector<Protocol::ShipPlacement> m_pendingPlacements;
@@ -92,9 +103,9 @@ class GraphicalView : public IView {
     // Virtual design canvas dimensions
     static constexpr int VIRTUAL_WIDTH = 1200;
     static constexpr int VIRTUAL_HEIGHT = 700;
+    static constexpr int CELL_SIZE = 35;
     RenderTexture2D m_target{};
 
     int m_windowedWidth{VIRTUAL_WIDTH};
     int m_windowedHeight{VIRTUAL_HEIGHT};
-    static constexpr int CELL_SIZE = 35;
 };

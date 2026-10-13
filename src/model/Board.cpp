@@ -41,6 +41,16 @@ bool Board::canPlaceShip(const Ship& ship, Coordinate start) const {
     return true;
 }
 
+bool Board::hasShipAt(int x, int y) const noexcept {
+    if (!inBounds(x, y)) return false;
+    return m_shipGrid[y][x] != nullptr;
+}
+
+std::optional<std::shared_ptr<Ship>> Board::getShipAt(int x, int y) const noexcept {
+    if (!inBounds(x, y)) return std::nullopt;
+    return m_shipGrid[y][x];
+}
+
 bool Board::placeShip(std::shared_ptr<Ship> ship, Coordinate start) {
     if (!ship || !canPlaceShip(*ship, start)) {
         return false;
@@ -53,7 +63,16 @@ bool Board::placeShip(std::shared_ptr<Ship> ship, Coordinate start) {
         int cx = horiz ? start.x + i : start.x;
         int cy = horiz ? start.y : start.y + i;
 
-        m_grid[cy][cx] = CellState::ShipPresent;
+        m_grid[cy][cx] = [&]() {
+            switch (ship->type()) {
+                case ShipType::Carrier: return CellState::Carrier;
+                case ShipType::Battleship: return CellState::Battleship;
+                case ShipType::Cruiser: return CellState::Cruiser;
+                case ShipType::Submarine: return CellState::Submarine;
+                case ShipType::Destroyer: return CellState::Destroyer;
+            }
+            return CellState::Empty; // Should never reach here
+        }();
         m_shipGrid[cy][cx] = ship;
     }
 
