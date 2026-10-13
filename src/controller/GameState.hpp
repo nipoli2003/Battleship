@@ -11,13 +11,16 @@ enum class MatchState {
     Defeat
 };
 
-enum class OpponentType {
-    LocalAI,
-    RemotePlayer
+enum class LobbySubState {
+    Setup,
+    Connecting,
+    ShowCode,
+    Waiting,
+    Error
 };
 
 struct GameSnapshot {
     MatchState state{MatchState::PlacementPhase};
-    std::string statusMessage{"Place your Carrier (Length: 5). Press [R] to rotate."};
+    std::string statusMessage{"Waiting for both players to place ships."};
     int turnNumber{0};
 };
