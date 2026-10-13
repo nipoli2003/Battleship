@@ -16,6 +16,9 @@ bool NetworkClient::connect(std::string ip, int port) {
     return true;
 }
 
+// ******************************************************************************* //
+// unhandled thread deadlock and race condition during NetworkClient destruction
+// ******************************************************************************* //
 void NetworkClient::disconnect() {
     m_connected = false;
     m_sock.close();
@@ -23,6 +26,9 @@ void NetworkClient::disconnect() {
     m_listenThread.join();
 }
 
+// ******************************************************************************* //
+// No Mutex on the Outgoing Socket
+// ******************************************************************************* //
 void NetworkClient::sendMsg(const std::string &line) {
     if (!isConnected())
         return;
@@ -45,6 +51,9 @@ void NetworkClient::sendFireShot(int x, int y) {
     sendMsg(Protocol::to_json(Protocol::FireShot{.x = x, .y = y}));
 }
 
+// ******************************************************************************* //
+// Sub-buffer Truncation in listenLoop
+// ******************************************************************************* //
 void NetworkClient::listenLoop() {
     std::string buf;
     char tmp[4096];

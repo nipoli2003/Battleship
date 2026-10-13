@@ -108,6 +108,9 @@ void GameServer::handle_client(sockpp::tcp_socket sock) {
     }
 }
 
+// ******************************************************************************* //
+// Bare new Without Ownership Management (Memory Leaks)
+// ******************************************************************************* //
 void GameServer::handle_new(sockpp::tcp_socket sock) {
     sockpp::tcp_socket *stored = new sockpp::tcp_socket(std::move(sock));
     std::string code;
@@ -122,6 +125,9 @@ void GameServer::handle_new(sockpp::tcp_socket sock) {
     std::cout << "[+] Lobby created: " << code << "\n";
 }
 
+// ******************************************************************************* //
+// Bare new Without Ownership Management (Memory Leaks)
+// ******************************************************************************* //
 void GameServer::handle_join(sockpp::tcp_socket sock,
                              const std::string &code) {
     sockpp::tcp_socket *p0 = nullptr;
@@ -165,6 +171,11 @@ void GameServer::runSession(sockpp::tcp_socket *p0, sockpp::tcp_socket *p1) {
                 done = true;
                 break;
             }
+            // ******************************************************************************* //
+            // If Player 0 disconnects, done is set to true. But Player 1 is currently blocking synchronously on sockets[1]->read(...). 
+            // It will never wake up to evaluate while (!done) until Player 1 happens to send data! 
+            // This leaves t1.join() blocked forever, hanging the thread and holding both socket descriptors open indefinitely.
+            // ******************************************************************************* //
             buf.append(tmp, res.value());
             std::string::size_type pos;
             while ((pos = buf.find('\n')) != std::string::npos) {
@@ -180,6 +191,9 @@ void GameServer::runSession(sockpp::tcp_socket *p0, sockpp::tcp_socket *p1) {
         }
     };
 
+    // ******************************************************************************* //
+    // Dangling Thread in runSession
+    // ******************************************************************************* //
     std::thread t0(readerFor, 0);
     std::thread t1(readerFor, 1);
     t0.join();
