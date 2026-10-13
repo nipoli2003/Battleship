@@ -84,9 +84,18 @@ struct StartGame {
     MsgType type{START_GAME};
 };
 
+enum UserState : int{
+    None,
+    PlacementPhase,
+    YourTurn,
+    OpponentTurn,
+    Victory,
+    Defeat
+};
+
 struct StateUpdate {
     MsgType type{STATE_UPDATE};
-    std::string state;
+    UserState state;
     int turnNumber{};
     std::string statusMessage;
     std::vector<int> yourBoard;
@@ -95,7 +104,7 @@ struct StateUpdate {
 
 struct GameOver {
     MsgType type{GAME_OVER};
-    std::string result;
+    UserState result;
     std::string message;
 };
 

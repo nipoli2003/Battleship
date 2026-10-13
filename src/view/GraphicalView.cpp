@@ -17,6 +17,7 @@ GraphicalView::GraphicalView() = default;
 
 void GraphicalView::init() {
     SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_VSYNC_HINT);
+    SetTraceLogLevel(LOG_WARNING);
     InitWindow(m_windowedWidth, m_windowedHeight, "Battleship - Naval Combat");
     SetWindowMinSize(960, 540);
     SetTargetFPS(60);
@@ -77,7 +78,7 @@ void GraphicalView::resetToMenu() {
     m_client.reset();
     {
         std::lock_guard lk(m_netMutex);
-        m_serverState.clear();
+        m_serverState = Protocol::UserState::None;
         m_statusMessage.clear();
         m_yourBoard.clear();
         m_enemyBoard.clear();
@@ -233,14 +234,14 @@ void GraphicalView::render() {
         break;
     }
     case AppScene::InGame: {
-        std::string state;
+        Protocol::UserState state;
         {
             std::lock_guard lk(m_netMutex);
             state = m_serverState;
         }
-        if (state == "Victory" || state == "Defeat")
+        if (state == Protocol::UserState::Victory || state == Protocol::UserState::Defeat)
             renderGameOver();
-        else if (state.empty() || state == "PlacementPhase")
+        else if (state == Protocol::UserState::None || state == Protocol::UserState::PlacementPhase)
             renderPlacement();
         else
             renderGame();
@@ -656,7 +657,8 @@ void GraphicalView::handleBoardClicks(int ex, int ey) {
 }
 
 void GraphicalView::renderGame() {
-    std::string state, status;
+    std::string status;
+    Protocol::UserState state;
     std::vector<int> your, enemy;
     {
         std::lock_guard lk(m_netMutex);
@@ -679,6 +681,9 @@ void GraphicalView::renderGame() {
     drawGrid(hgx, gy, your, false, false);
     drawGrid(egx, gy, enemy, true, true);
 
+    if (!m_showSettingsModal && state == Protocol::UserState::YourTurn)
+        handleBoardClicks(egx, gy);
+
     Rectangle btnLeave{20.f, 20.f, 100.f, 35.f};
     bool hovLeave = !m_showSettingsModal && CheckCollisionPointRec(getVirtualMousePosition(), btnLeave);
     drawButton(btnLeave, "< Menu", hovLeave);
@@ -687,14 +692,15 @@ void GraphicalView::renderGame() {
 }
 
 void GraphicalView::renderGameOver() {
-    std::string state, status;
+    std::string status;
+    Protocol::UserState state;
     {
         std::lock_guard lk(m_netMutex);
         state = m_serverState;
         status = m_statusMessage;
     }
 
-    bool won = (state == "Victory");
+    bool won = (state == Protocol::UserState::Victory);
     const char *headline = won ? "VICTORY!" : "DEFEAT";
     DrawText(headline, (VIRTUAL_WIDTH - MeasureText(headline, 72)) / 2,
              VIRTUAL_HEIGHT / 2 - 80, 72, won ? GREEN : RED);
@@ -782,7 +788,7 @@ void GraphicalView::onStateUpdate(Protocol::StateUpdate update) {
     bool first = false;
     {
         std::lock_guard lk(m_netMutex);
-        first = m_serverState.empty(); // first update triggers scene switch
+        first = (m_serverState == Protocol::UserState::None); // first update triggers scene switch
         m_serverState = update.state;
         m_statusMessage = update.statusMessage;
         m_yourBoard = std::move(update.yourBoard);
@@ -794,7 +800,7 @@ void GraphicalView::onStateUpdate(Protocol::StateUpdate update) {
 
 void GraphicalView::onGameOver(Protocol::GameOver msg) {
     std::lock_guard lk(m_netMutex);
-    m_serverState = msg.result; // "Victory" or "Defeat"
+    m_serverState = msg.result;
     m_statusMessage = msg.message;
 
     drawSettingsTriggerButton(40.0f, VIRTUAL_HEIGHT - 45.0f);

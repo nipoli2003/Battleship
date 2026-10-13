@@ -78,7 +78,7 @@ class GraphicalView : public IView {
     // mutex-protected state (written by network thread, read by main/render thread)
     mutable std::mutex m_netMutex;
     LobbySubState m_lobbySubState{LobbySubState::Setup};
-    std::string m_serverState; // "PlacementPhase" | "YourTurn" | "OpponentTurn" | "Victory" | "Defeat"
+    Protocol::UserState m_serverState{Protocol::UserState::None};
     std::string m_statusMessage;
     std::string m_lobbyCode;
     std::string m_lobbyError;
