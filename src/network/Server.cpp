@@ -172,8 +172,8 @@ void GameServer::runSession(sockpp::tcp_socket *p0, sockpp::tcp_socket *p1) {
                 break;
             }
             // ******************************************************************************* //
-            // If Player 0 disconnects, done is set to true. But Player 1 is currently blocking synchronously on sockets[1]->read(...). 
-            // It will never wake up to evaluate while (!done) until Player 1 happens to send data! 
+            // If Player 0 disconnects, done is set to true. But Player 1 is currently blocking synchronously on sockets[1]->read(...).
+            // It will never wake up to evaluate while (!done) until Player 1 happens to send data!
             // This leaves t1.join() blocked forever, hanging the thread and holding both socket descriptors open indefinitely.
             // ******************************************************************************* //
             buf.append(tmp, res.value());
@@ -223,12 +223,24 @@ void GameServer::handleLine(GameSession &session, sockpp::tcp_socket *sockets[2]
 
     } else if (type == Protocol::FIRE_SHOT) {
         auto msg = Protocol::from_json<Protocol::FireShot>(line);
+        // invalid shot
         if (!session.fire(playerIdx, {msg.x, msg.y})) {
-            sendLine(*sockets[playerIdx],
-                     Protocol::to_json(Protocol::ServerError{.error = "Invalid shot"}));
+            sendLine(*sockets[playerIdx], Protocol::to_json(Protocol::ServerError{.error = "Invalid shot"}));
             return;
         }
-        pushToAll(session, sockets);
+        // game over
+        else if (session.isOver()) {
+            for (int i = 0; i < 2; ++i) {
+                bool won = (i == playerIdx);
+                sendLine(*sockets[i], Protocol::to_json(Protocol::GameOver{
+                                          .result = won ? Protocol::UserState::Victory : Protocol::UserState::Defeat,
+                                          .message = won ? "You sank the enemy fleet!" : "Your fleet has been destroyed."}));
+            }
+        }
+        // normal shot
+        else {
+            pushToAll(session, sockets);
+        }
     }
 }
 
