@@ -42,8 +42,9 @@ std::string GameServer::trim(std::string s) {
     return s;
 }
 
-void GameServer::sendLine(sockpp::tcp_socket &sock, const std::string &line) {
-    sock.write_n(line.c_str(), line.size());
+void GameServer::sendLine(Client &c, const std::string &line) {
+    std::lock_guard<std::mutex> lock(c.write_mutex);
+    c.socket.write_n(line.c_str(), line.size());
 }
 
 void GameServer::reaper() {
@@ -58,8 +59,7 @@ void GameServer::reaper() {
                 if (it->second.socket) { // check: when initializing, socket is null
                     sendLine(*it->second.socket,
                              Protocol::to_json(Protocol::LobbyError{.error = "Lobby expired"}));
-                    it->second.socket->close();
-                    delete it->second.socket;
+                    // socket closes when shared_ptr has no more references
                 }
                 it = m_registry.erase(it);
             } else {
@@ -84,7 +84,10 @@ std::string GameServer::readLine(sockpp::tcp_socket &sock) {
 }
 
 void GameServer::handle_client(sockpp::tcp_socket sock) {
-    std::string line = readLine(sock);
+    auto client = std::make_shared<Client>();
+    client->socket = std::move(sock);
+
+    std::string line = readLine(client->socket);
     if (line.empty()) {
         std::cerr << "[server] empty message\n";
         return;
@@ -99,38 +102,30 @@ void GameServer::handle_client(sockpp::tcp_socket sock) {
     }
 
     if (type == Protocol::CREATE_LOBBY) {
-        handle_new(std::move(sock));
+        handle_new(std::move(client));
     } else if (type == Protocol::JOIN_LOBBY) {
         auto msg = Protocol::from_json<Protocol::JoinLobby>(line);
-        handle_join(std::move(sock), msg.code);
+        handle_join(std::move(client), msg.code);
     } else {
         std::cerr << "[server] unknown message type: " << static_cast<int>(type) << std::endl;
     }
 }
 
-// ******************************************************************************* //
-// Bare new Without Ownership Management (Memory Leaks)
-// ******************************************************************************* //
-void GameServer::handle_new(sockpp::tcp_socket sock) {
-    sockpp::tcp_socket *stored = new sockpp::tcp_socket(std::move(sock));
+void GameServer::handle_new(ClientPtr client) {
     std::string code;
     {
         std::lock_guard<std::mutex> lock(m_lobby_mutex);
         do {
             code = make_code();
         } while (m_registry.count(code));
-        m_registry[code] = {stored, std::chrono::steady_clock::now()};
+        m_registry[code] = {client, std::chrono::steady_clock::now()};
     }
-    sendLine(*stored, Protocol::to_json(Protocol::LobbyCode{.code = code}));
+    sendLine(*client, Protocol::to_json(Protocol::LobbyCode{.code = code}));
     std::cout << "[+] Lobby created: " << code << "\n";
 }
 
-// ******************************************************************************* //
-// Bare new Without Ownership Management (Memory Leaks)
-// ******************************************************************************* //
-void GameServer::handle_join(sockpp::tcp_socket sock,
-                             const std::string &code) {
-    sockpp::tcp_socket *p0 = nullptr;
+void GameServer::handle_join(ClientPtr client, const std::string &code) {
+    ClientPtr p0 = nullptr;
     {
         std::lock_guard<std::mutex> lock(m_lobby_mutex);
         auto it = m_registry.find(code);
@@ -141,23 +136,22 @@ void GameServer::handle_join(sockpp::tcp_socket sock,
     }
 
     if (!p0) {
-        sendLine(sock, Protocol::to_json(Protocol::LobbyError{.error = "Lobby not found"}));
+        sendLine(*client, Protocol::to_json(Protocol::LobbyError{.error = "Lobby not found"}));
         return;
     }
 
-    sockpp::tcp_socket *p1 = new sockpp::tcp_socket(std::move(sock));
     // sendLine(*p1, Protocol::to_json(Protocol::LobbyJoined{})); // notified later in runSession
     std::cout << "[+] Lobby joined: " << code << "\n";
-    std::thread(&GameServer::runSession, this, p0, p1).detach();
+    std::thread(&GameServer::runSession, this, p0, std::move(client)).detach();
 }
 
-void GameServer::runSession(sockpp::tcp_socket *p0, sockpp::tcp_socket *p1) {
+void GameServer::runSession(ClientPtr p0,  ClientPtr p1) {
     GameSession session;
-    sockpp::tcp_socket *sockets[2] = {p0, p1};
+    ClientPtr clients[2] = {p0, p1};
 
-    sendLine(*sockets[0], Protocol::to_json(Protocol::LobbyJoined{}));
-    sendLine(*sockets[1], Protocol::to_json(Protocol::LobbyJoined{}));
-    pushToAll(session, sockets);
+    sendLine(*clients[0], Protocol::to_json(Protocol::LobbyJoined{}));
+    sendLine(*clients[1], Protocol::to_json(Protocol::LobbyJoined{}));
+    pushToAll(session, clients);
 
     std::atomic<bool> done{false};
     std::mutex sessionMutex;
@@ -166,16 +160,14 @@ void GameServer::runSession(sockpp::tcp_socket *p0, sockpp::tcp_socket *p1) {
         std::string buf;
         char tmp[BUFFER_SIZE];
         while (!done) {
-            auto res = sockets[idx]->read(tmp, sizeof(tmp));
+            auto res = clients[idx]->socket.read(tmp, sizeof(tmp));
             if (!res || res.value() == 0) {
                 done = true;
+                // wake the other readed out of its blocking() read s.t. it can observe 'done' and return
+                int other = 1 - idx;
+                clients[other]->socket.shutdown(SHUT_RDWR);
                 break;
             }
-            // ******************************************************************************* //
-            // If Player 0 disconnects, done is set to true. But Player 1 is currently blocking synchronously on sockets[1]->read(...). 
-            // It will never wake up to evaluate while (!done) until Player 1 happens to send data! 
-            // This leaves t1.join() blocked forever, hanging the thread and holding both socket descriptors open indefinitely.
-            // ******************************************************************************* //
             buf.append(tmp, res.value());
             std::string::size_type pos;
             while ((pos = buf.find('\n')) != std::string::npos) {
@@ -183,7 +175,7 @@ void GameServer::runSession(sockpp::tcp_socket *p0, sockpp::tcp_socket *p1) {
                 buf.erase(0, pos + 1);
                 if (!line.empty()) {
                     std::lock_guard<std::mutex> lock(sessionMutex);
-                    handleLine(session, sockets, idx, line);
+                    handleLine(session, clients, idx, line);
                 }
                 if (done)
                     break;
@@ -191,20 +183,16 @@ void GameServer::runSession(sockpp::tcp_socket *p0, sockpp::tcp_socket *p1) {
         }
     };
 
-    // ******************************************************************************* //
-    // Dangling Thread in runSession
-    // ******************************************************************************* //
     std::thread t0(readerFor, 0);
     std::thread t1(readerFor, 1);
     t0.join();
     t1.join();
 
     std::cout << "[session] ended\n";
-    delete p0;
-    delete p1;
+    // clients[] go out of scope and are destroyed
 }
 
-void GameServer::handleLine(GameSession &session, sockpp::tcp_socket *sockets[2], int playerIdx, const std::string &line) {
+void GameServer::handleLine(GameSession &session, ClientPtr clients[2], int playerIdx, const std::string &line) {
     Protocol::MsgType type;
     try {
         type = Protocol::peek_type(line);
@@ -215,24 +203,36 @@ void GameServer::handleLine(GameSession &session, sockpp::tcp_socket *sockets[2]
     if (type == Protocol::PLACE_SHIPS) {
         auto msg = Protocol::from_json<Protocol::PlaceShips>(line);
         if (!session.placeShips(playerIdx, msg.ships)) {
-            sendLine(*sockets[playerIdx],
+            sendLine(*clients[playerIdx],
                      Protocol::to_json(Protocol::ServerError{.error = "Invalid placement"}));
             return;
         }
-        pushToAll(session, sockets);
+        pushToAll(session, clients);
 
     } else if (type == Protocol::FIRE_SHOT) {
         auto msg = Protocol::from_json<Protocol::FireShot>(line);
+        // invalid shot
         if (!session.fire(playerIdx, {msg.x, msg.y})) {
-            sendLine(*sockets[playerIdx],
-                     Protocol::to_json(Protocol::ServerError{.error = "Invalid shot"}));
+            sendLine(*clients[playerIdx], Protocol::to_json(Protocol::ServerError{.error = "Invalid shot"}));
             return;
         }
-        pushToAll(session, sockets);
+        // game over
+        else if (session.isOver()) {
+            for (int i = 0; i < 2; ++i) {
+                bool won = (i == playerIdx);
+                sendLine(*clients[i], Protocol::to_json(Protocol::GameOver{
+                                          .result = won ? Protocol::UserState::Victory : Protocol::UserState::Defeat,
+                                          .message = won ? "You sank the enemy fleet!" : "Your fleet has been destroyed."}));
+            }
+        }
+        // normal shot
+        else {
+            pushToAll(session, clients);
+        }
     }
 }
 
-void GameServer::pushToAll(GameSession &session, sockpp::tcp_socket *sockets[2]) {
+void GameServer::pushToAll(GameSession &session, ClientPtr clients[2]) {
     for (int i = 0; i < 2; ++i)
-        sendLine(*sockets[i], Protocol::to_json(session.buildSnapshot(i)));
+        sendLine(*clients[i], Protocol::to_json(session.buildSnapshot(i)));
 }

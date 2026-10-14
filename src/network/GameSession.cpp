@@ -37,19 +37,19 @@ Protocol::StateUpdate GameSession::buildSnapshot(int playerIdx) const {
     // flip Victory/Defeat so each player sees their own outcome
     switch (snap.state) {
     case MatchState::PlacementPhase:
-        out.state = "PlacementPhase";
+        out.state = Protocol::UserState::PlacementPhase;
         break;
     case MatchState::PlayerTurn:
-        out.state = (playerIdx == 0) ? "YourTurn" : "OpponentTurn";
+        out.state = (playerIdx == 0) ? Protocol::UserState::YourTurn : Protocol::UserState::OpponentTurn;
         break;
     case MatchState::OpponentTurn:
-        out.state = (playerIdx == 0) ? "OpponentTurn" : "YourTurn";
+        out.state = (playerIdx == 0) ? Protocol::UserState::OpponentTurn : Protocol::UserState::YourTurn;
         break;
     case MatchState::Victory:
-        out.state = (playerIdx == 0) ? "Victory" : "Defeat";
+        out.state = (playerIdx == 0) ? Protocol::UserState::Victory : Protocol::UserState::Defeat;
         break;
     case MatchState::Defeat:
-        out.state = (playerIdx == 0) ? "Defeat" : "Victory";
+        out.state = (playerIdx == 0) ? Protocol::UserState::Defeat : Protocol::UserState::Victory;
         break;
     }
 
