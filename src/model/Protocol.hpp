@@ -23,6 +23,23 @@ enum MsgType : int {
     SERVER_ERROR
 };
 
+inline const std::string msg_type_to_str(MsgType type) {
+    switch (type) {
+    case CREATE_LOBBY: return "CREATE_LOBBY";
+    case JOIN_LOBBY:   return "JOIN_LOBBY";
+    case PLACE_SHIPS:  return "PLACE_SHIPS";
+    case FIRE_SHOT:    return "FIRE_SHOT";
+    case LOBBY_CODE:   return "LOBBY_CODE";
+    case LOBBY_JOINED: return "LOBBY_JOINED";
+    case LOBBY_ERROR:  return "LOBBY_ERROR";
+    case START_GAME:   return "START_GAME";
+    case STATE_UPDATE: return "STATE_UPDATE";
+    case GAME_OVER:    return "GAME_OVER";
+    case SERVER_ERROR: return "SERVER_ERROR";
+    default:           return "UNKNOWN_MSG_TYPE";
+    }
+}
+
 // enum wrapper for Glaze (glaze needs a struct for serialization)
 struct Header {
     int type{-1};
@@ -84,7 +101,7 @@ struct StartGame {
     MsgType type{START_GAME};
 };
 
-enum UserState : int{
+enum UserState : int {
     None,
     PlacementPhase,
     YourTurn,

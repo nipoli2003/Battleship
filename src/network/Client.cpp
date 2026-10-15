@@ -86,6 +86,12 @@ void NetworkClient::dispatch(const std::string &line) {
         return;
     }
 
+    auto short_line = [&]() {
+        int max_len = std::min(50, static_cast<int>(line.size()));
+        return line.substr(0, max_len) + (line.size() > max_len ? "..." : "");
+    };
+    BS_DEBUG << "received message '" << Protocol::msg_type_to_str(type) << "': " << short_line();
+
     using MT = Protocol::MsgType;
     if (type == MT::LOBBY_CODE) {
         auto msg = Protocol::from_json<Protocol::LobbyCode>(line);
