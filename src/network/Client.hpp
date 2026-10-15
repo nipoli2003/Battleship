@@ -3,20 +3,23 @@
 
 #include "model/Protocol.hpp"
 #include <atomic>
-#include <functional>
+#include <mutex>
 #include <sockpp/tcp_connector.h>
 #include <string>
 #include <thread>
+#include <variant>
 #include <vector>
+
+using NetEvent = std::variant<
+    Protocol::LobbyCode,
+    Protocol::LobbyJoined,
+    Protocol::LobbyError,
+    Protocol::StateUpdate,
+    Protocol::GameOver>;
 
 class NetworkClient {
   public:
-    NetworkClient(std::function<void(std::string code)> onLobbyCode, std::function<void()> onLobbyJoined,
-                  std::function<void(std::string reason)> onLobbyError, std::function<void()> onStartGame,
-                  std::function<void(Protocol::StateUpdate)> onStateUpdate,
-                  std::function<void(Protocol::GameOver)> onGameOver)
-        : onLobbyCode(onLobbyCode), onLobbyJoined(onLobbyJoined), onLobbyError(onLobbyError),
-          onStartGame(onStartGame), onStateUpdate(onStateUpdate), onGameOver(onGameOver) {}
+    NetworkClient(std::vector<NetEvent> &queue, std::mutex &queueMutex);
 
     bool connect(std::string ip, int port);
     void disconnect();
@@ -43,13 +46,8 @@ class NetworkClient {
     std::atomic<bool> m_connected;
     std::thread m_listenThread;
 
-    // callbacks
-    std::function<void(std::string code)> onLobbyCode;
-    std::function<void()> onLobbyJoined;
-    std::function<void(std::string reason)> onLobbyError;
-    std::function<void()> onStartGame;
-    std::function<void(Protocol::StateUpdate)> onStateUpdate;
-    std::function<void(Protocol::GameOver)> onGameOver;
+    std::vector<NetEvent> &m_queue;
+    std::mutex &m_queueMutex;
 };
 
 #endif
