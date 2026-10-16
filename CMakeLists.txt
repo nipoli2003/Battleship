@@ -44,10 +44,12 @@ FetchContent_MakeAvailable(raylib sockpp glaze)
 # ---------------------------------------------------------
 file(GLOB_RECURSE MODEL_SOURCES "src/model/*.cpp")
 file(GLOB_RECURSE CONTROLLER_SOURCES "src/controller/*.cpp")
+file(GLOB_RECURSE HELPER_SOURCES "src/helpers/*.cpp")
 
 add_library(battleship_core STATIC
     ${MODEL_SOURCES}
     ${CONTROLLER_SOURCES}
+    ${HELPER_SOURCES}
 )
 target_include_directories(battleship_core PUBLIC src)
 target_link_libraries(battleship_core PUBLIC glaze::glaze)

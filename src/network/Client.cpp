@@ -1,4 +1,5 @@
 #include "network/Client.hpp"
+#include "helpers/logger.hpp"
 
 bool NetworkClient::connect(std::string ip, int port) {
     if (isConnected())
@@ -7,7 +8,7 @@ bool NetworkClient::connect(std::string ip, int port) {
     sockpp::tcp_connector conn({ip, static_cast<in_port_t>(port)});
     if (!conn) {
         // TOOD: how to get error?
-        std::cerr << "[client] connection failed\n";
+        BS_ERROR << "[client] connection failed";
         return false;
     }
     m_sock = std::move(conn);
@@ -81,9 +82,15 @@ void NetworkClient::dispatch(const std::string &line) {
     try {
         type = Protocol::peek_type(line);
     } catch (...) {
-        std::cerr << "[client] bad message: " << line << std::endl;
+        BS_WARN << "[client] bad message: " << line;
         return;
     }
+
+    auto short_line = [&]() {
+        int max_len = std::min(50, static_cast<int>(line.size()));
+        return line.substr(0, max_len) + (line.size() > max_len ? "..." : "");
+    };
+    BS_DEBUG << "received message '" << Protocol::msg_type_to_str(type) << "': " << short_line();
 
     using MT = Protocol::MsgType;
     if (type == MT::LOBBY_CODE) {
@@ -103,6 +110,6 @@ void NetworkClient::dispatch(const std::string &line) {
         auto msg = Protocol::from_json<Protocol::GameOver>(line);
         onGameOver(msg);
     } else {
-        std::cerr << "[client] unknown message: " << line << std::endl;
+        BS_WARN << "[client] unknown message: " << line;
     }
 }

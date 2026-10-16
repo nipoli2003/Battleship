@@ -1,6 +1,5 @@
 #pragma once
 
-#include "model/Board.hpp"
 #include <string>
 
 enum class MatchState {

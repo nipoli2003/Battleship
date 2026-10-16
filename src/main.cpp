@@ -1,10 +1,11 @@
 #include "view/GraphicalView.hpp"
 #include "view/AudioManager.hpp"
 #include "raylib.h"
-#include <iostream>
+#include <helpers/logger.hpp>
 
 int main() {
-    std::cout << "Starting Battleship..." << std::endl;
+    Log::setLevel(Log::Level::Debug);
+    BS_INFO << "Starting Battleship";
     GraphicalView view;
     view.init();
     AudioManager::instance().init();
