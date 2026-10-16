@@ -56,11 +56,13 @@ target_link_libraries(battleship_core PUBLIC glaze::glaze)
 # Main Game Executable (GUI + Networking client)
 # ---------------------------------------------------------
 file(GLOB_RECURSE VIEW_SOURCES "src/view/*.cpp")
+file(GLOB_RECURSE APP_SOURCES  "src/app/*.cpp")
 
 add_executable(battleship
     src/main.cpp
     src/network/Client.cpp
     ${VIEW_SOURCES}
+    ${APP_SOURCES}
 )
 
 target_include_directories(battleship PRIVATE

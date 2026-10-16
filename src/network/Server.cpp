@@ -26,7 +26,7 @@ void GameServer::run(int port) {
 }
 
 std::string GameServer::make_code() {
-    static const char chars[] = "ABCDEFXY0123456789";
+    static const char chars[] = "ABCDEXY0123456789";
     static std::mt19937 rng(std::random_device{}());
     static std::uniform_int_distribution<> dist(0, sizeof(chars) - 2);
 

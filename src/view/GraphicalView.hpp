@@ -3,104 +3,67 @@
 #include "model/Board.hpp"
 #include "model/Protocol.hpp"
 #include "model/Ship.hpp"
-#include "network/Client.hpp"
 #include "raylib.h"
 #include "view/AppScene.hpp"
 #include "view/IView.hpp"
-#include <atomic>
-#include <memory>
-#include <mutex>
 #include <string>
 #include <vector>
+
+class AppController;
+struct ClientState;
 
 class GraphicalView : public IView {
   public:
     GraphicalView();
     ~GraphicalView() override = default;
 
+    void setOwner(AppController* owner) { m_owner = owner; }
+
     void init() override;
-    void render() override;
+    void render(ClientState& state) override;
     [[nodiscard]] bool shouldClose() const override;
     void close() override;
 
   private:
     void handleFullscreenToggle();
     [[nodiscard]] Vector2 getVirtualMousePosition() const;
-    void drawButton(Rectangle bounds, const char *text, bool hovered);
-    void handleTextInput(std::string &field, int maxLen);
-    void resetToMenu();
+    void drawButton(Rectangle bounds, const char* text, bool hovered);
+    void handleTextInput(std::string& field, int maxLen);
+    void playClick();
 
-    // scene renderers and handlers
-    void renderTitleScreen();
-    void renderMainMenu();
-    void renderLobbySetup();
-    void renderLobbyWait();
-    void renderPlacement();
-    void renderGame();
-    void renderGameOver();
+    // scene renderers
+    void renderTitleScreen(ClientState& state);
+    void renderMainMenu(ClientState& state);
+    void renderLobbySetup(ClientState& state);
+    void renderLobbyWait(const ClientState& state);
+    void renderPlacement(ClientState& state);
+    void renderGame(const ClientState& state);
+    void renderGameOver(const ClientState& state);
 
     // drawing helpers
-    void renderSettingsModal();
-    void drawSettingsTriggerButton(float x, float y);
+    void renderSettingsModal(ClientState& state);
+    void drawSettingsTriggerButton(float x, float y, bool& showModal);
     bool drawSlider(Rectangle bounds, const char* label, int& value, bool& isDragging);
-    void drawGrid(int startX, int startY, const std::vector<int> &cells, bool hideShips, bool isEnemy);
-    void drawLocalBoard(int startX, int startY);
+    void drawGrid(int startX, int startY, const std::vector<int>& cells, bool hideShips, bool isEnemy);
+    void drawLocalBoard(int startX, int startY, const Board& board);
     void handleBoardClicks(int enemyStartX, int enemyStartY);
-    void randomizeLocalFleet();
+    void randomizeLocalFleet(ClientState& state);
 
-    // network setup (called from main/render thread, blocks briefly on connect)
-    // TODO: run async
-    void connectAndCreate(const std::string &ip, int port);
-    void connectAndJoin(const std::string &ip, int port, const std::string &code);
+    AppController* m_owner{nullptr};
 
-    // networkClient callbacks, invoked from the network listen thread
-    void onLobbyCode(std::string code);
-    void onLobbyJoined();
-    void onLobbyError(std::string reason);
-    void onStartGame();
-    void onStateUpdate(Protocol::StateUpdate update);
-    void onGameOver(Protocol::GameOver msg);
+    // --- Settings (main thread only) ---
+    bool m_showSettingsModal{false};
+    bool m_draggingMusic{false};
+    bool m_draggingSFX{false};
 
-    // app state, main thread only
-    AppScene m_currentScene{AppScene::TitleScreen};
-    bool m_shouldExit{false};
-    std::atomic<bool> m_pendingGameStart{false}; // set by network thread, cleared in render()
-
-    // lobby input, main thread only
+    // --- Lobby input (main thread only) ---
     bool m_isCreating{true};
     std::string m_ipInput{"127.0.0.1"};
     std::string m_codeInput;
     int m_activeInputField{0};
 
-    // network client (owned by main thread; listen thread uses it internally)
-    std::unique_ptr<NetworkClient> m_client;
-
-    // mutex-protected state (written by network thread, read by main/render thread)
-    mutable std::mutex m_netMutex;
-    LobbySubState m_lobbySubState{LobbySubState::Setup};
-    Protocol::UserState m_serverState{Protocol::UserState::None};
-    std::string m_statusMessage;
-    std::string m_lobbyCode;
-    std::string m_lobbyError;
-    std::vector<int> m_yourBoard; // 100 ints, CellState values
-    std::vector<int> m_enemyBoard;
-
-    // --- Options / Settings State ---
-    bool m_showSettingsModal{false};
-    int m_musicVolume{70};      // 0 - 100
-    int m_sfxVolume{80};        // 0 - 100
-    bool m_draggingMusic{false};
-    bool m_draggingSFX{false};
-
-    // local placement state, main thread only
-    Board m_localBoard;
-    std::vector<Protocol::ShipPlacement> m_pendingPlacements;
-    bool m_placementSent{false};
-    Orientation m_placementOrientation{Orientation::Horizontal};
-
     static const std::vector<ShipType> SHIP_ORDER;
 
-    // Virtual design canvas dimensions
     static constexpr int VIRTUAL_WIDTH = 1200;
     static constexpr int VIRTUAL_HEIGHT = 700;
     static constexpr int CELL_SIZE = 35;
