@@ -668,7 +668,8 @@ void GraphicalView::renderGame() {
         enemy = m_enemyBoard;
     }
 
-    DrawText(status.c_str(), (VIRTUAL_WIDTH - MeasureText(status.c_str(), 22)) / 2, 35, 22, YELLOW);
+    Color statusColor = (state == Protocol::UserState::YourTurn) ? GREEN : ORANGE;
+    DrawText(status.c_str(), (VIRTUAL_WIDTH - MeasureText(status.c_str(), 22)) / 2, 35, 22, statusColor);
 
     int gw = Board::SIZE * CELL_SIZE;
     int hgx = VIRTUAL_WIDTH / 2 - gw - 50;

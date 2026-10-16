@@ -1,5 +1,46 @@
 #include "network/GameSession.hpp"
 
+namespace {
+
+// The engine keeps one neutral snapshot for both players, so its statusMessage
+// can't say "you" vs "opponent". Build the text per player here instead.
+std::string buildStatusMessage(const GameSnapshot &snap, int playerIdx) {
+    const bool myTurn = (snap.state == MatchState::PlayerTurn && playerIdx == 0) ||
+                        (snap.state == MatchState::OpponentTurn && playerIdx == 1);
+
+    switch (snap.state) {
+    case MatchState::PlacementPhase:
+        return snap.statusMessage;
+    case MatchState::Victory:
+    case MatchState::Defeat:
+        return "Game over!";
+    default:
+        break;
+    }
+
+    std::string last;
+    if (snap.lastShooter != -1) {
+        const bool iShot = (snap.lastShooter == playerIdx);
+        switch (snap.lastResult) {
+        case AttackResult::Miss:
+            last = iShot ? "You missed. " : "Opponent missed. ";
+            break;
+        case AttackResult::Hit:
+            last = iShot ? "Hit! " : "Opponent hit your ship! ";
+            break;
+        case AttackResult::Sunk:
+            last = iShot ? "You sunk a ship! " : "Opponent sunk one of your ships! ";
+            break;
+        default:
+            break;
+        }
+    }
+
+    return last + (myTurn ? "Your turn - fire!" : "Opponent's turn...");
+}
+
+} // namespace
+
 bool GameSession::placeShips(int playerIdx, const std::vector<Protocol::ShipPlacement> &ships) {
     // translate Protocol::ShipPlacement into what the engine expects
     std::vector<std::pair<ShipType, std::pair<Coordinate, Orientation>>> parsed;
@@ -32,7 +73,7 @@ Protocol::StateUpdate GameSession::buildSnapshot(int playerIdx) const {
 
     Protocol::StateUpdate out;
     out.turnNumber = snap.turnNumber;
-    out.statusMessage = snap.statusMessage;
+    out.statusMessage = buildStatusMessage(snap, playerIdx);
 
     // flip Victory/Defeat so each player sees their own outcome
     switch (snap.state) {

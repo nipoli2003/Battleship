@@ -53,6 +53,9 @@ bool BattleshipEngine::fire(int playerIdx, Coordinate target) {
     if (result == AttackResult::Invalid)
         return false;
 
+    m_snapshot.lastShooter = playerIdx;
+    m_snapshot.lastResult = result;
+
     if (m_boards[victimIdx].allShipsSunk()) {
         m_snapshot.state = (playerIdx == 0) ? MatchState::Victory : MatchState::Defeat;
         m_snapshot.statusMessage = "Game over!";
