@@ -17,7 +17,7 @@ enum MsgType : int {
     LOBBY_CODE,
     LOBBY_JOINED,
     LOBBY_ERROR,
-    START_GAME,
+    // START_GAME,
     STATE_UPDATE,
     GAME_OVER,
     SERVER_ERROR
@@ -78,10 +78,6 @@ struct LobbyJoined {
 struct LobbyError {
     MsgType type{LOBBY_ERROR};
     std::string error;
-};
-
-struct StartGame {
-    MsgType type{START_GAME};
 };
 
 enum UserState : int{
