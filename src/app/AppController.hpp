@@ -19,11 +19,18 @@ class AppController {
     void run();
 
     // --- Called by GraphicalView (main thread only) ---
+    void goToMenu();
+    void openLobbySetup();
     void connectAndCreate(const std::string& ip, int port);
     void connectAndJoin(const std::string& ip, int port, const std::string& code);
-    void sendPlacement(const std::vector<Protocol::ShipPlacement>& ships);
+    bool sendPlacement(const std::vector<Protocol::ShipPlacement>& ships);
     void sendShot(int x, int y);
     void resetToMenu();
+
+    void requestExit();
+
+    void setMusicVolume(int volume); // 0-100
+    void setSFXVolume(int volume); // 0-100
 
   private:
     enum class PendingAction { None, CreateLobby, JoinLobby };

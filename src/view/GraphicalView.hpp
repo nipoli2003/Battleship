@@ -20,7 +20,7 @@ class GraphicalView : public IView {
     void setOwner(AppController* owner) { m_owner = owner; }
 
     void init() override;
-    void render(ClientState& state) override;
+    void render(const ClientState& state) override;
     [[nodiscard]] bool shouldClose() const override;
     void close() override;
 
@@ -32,22 +32,24 @@ class GraphicalView : public IView {
     void playClick();
 
     // scene renderers
-    void renderTitleScreen(ClientState& state);
-    void renderMainMenu(ClientState& state);
-    void renderLobbySetup(ClientState& state);
+    void renderTitleScreen(const ClientState& state);
+    void renderMainMenu(const ClientState& state);
+    void renderLobbySetup(const ClientState& state);
     void renderLobbyWait(const ClientState& state);
-    void renderPlacement(ClientState& state);
+    void renderPlacement(const ClientState& state);
     void renderGame(const ClientState& state);
     void renderGameOver(const ClientState& state);
 
     // drawing helpers
-    void renderSettingsModal(ClientState& state);
-    void drawSettingsTriggerButton(float x, float y, bool& showModal);
-    bool drawSlider(Rectangle bounds, const char* label, int& value, bool& isDragging);
+    void renderSettingsModal(const ClientState& state);
+    void drawSettingsTriggerButton(float x, float y);
+    std::optional<int> drawSlider(Rectangle bounds, const char* label, int currentValue, bool& isDragging);
     void drawGrid(int startX, int startY, const std::vector<int>& cells, bool hideShips, bool isEnemy);
     void drawLocalBoard(int startX, int startY, const Board& board);
     void handleBoardClicks(int enemyStartX, int enemyStartY);
-    void randomizeLocalFleet(ClientState& state);
+
+    void resetPlacementState();
+    void randomizeLocalFleet();
 
     AppController* m_owner{nullptr};
 
@@ -61,6 +63,15 @@ class GraphicalView : public IView {
     std::string m_ipInput{"127.0.0.1"};
     std::string m_codeInput;
     int m_activeInputField{0};
+
+    // --- temporary state while placing ---
+    Board m_localBoard;
+    std::vector<Protocol::ShipPlacement> m_pendingPlacements;
+    Orientation m_placementOrientation{Orientation::Horizontal};
+    bool m_placementSent{false};
+
+    // --- reset placement state when entering InGame ---
+    AppScene m_prevScene{AppScene::TitleScreen};
 
     static const std::vector<ShipType> SHIP_ORDER;
 

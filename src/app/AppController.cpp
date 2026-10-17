@@ -31,12 +31,18 @@ void AppController::drainNetEvents() {
     }
 }
 
+void AppController::goToMenu() {
+    m_state.scene = AppScene::MainMenu;
+}
+
+void AppController::openLobbySetup() {
+    m_state.scene = AppScene::OnlineLobbyWait;
+    m_state.lobbySubState = LobbySubState::Setup;
+    m_state.lobbyError.clear();
+}
+
 void AppController::onEnterGame() {
     m_state.scene = AppScene::InGame;
-    m_state.serverState = Protocol::UserState::PlacementPhase;
-    m_state.placementSent = false;
-    m_state.localBoard.reset();
-    m_state.pendingPlacements.clear();
 }
 
 void AppController::handleNetEvent(const Network::NetEvent& ev) {
@@ -73,13 +79,11 @@ void AppController::handleNetEvent(const Network::NetEvent& ev) {
             std::cerr << "[app] server error: " << msg.error << "\n";
         }
         else if constexpr (std::is_same_v<T, Network::Disconnected>) {
-            m_state.connected = false;
             m_state.lobbySubState = LobbySubState::Error;
             m_state.lobbyError = msg.reason;
         }
         else if constexpr (std::is_same_v<T, Network::ConnectionResult>) {
             if (msg.success) {
-                m_state.connected = true;
                 switch (m_pendingAction) {
                 case PendingAction::CreateLobby:
                     m_net->createLobby();
@@ -93,7 +97,6 @@ void AppController::handleNetEvent(const Network::NetEvent& ev) {
                 m_pendingAction = PendingAction::None;
                 // scene stays OnlineLobbyWait; the server's reply drives the next transition
             } else {
-                m_state.connected = false;
                 m_state.lobbySubState = LobbySubState::Error;
                 m_state.lobbyError = msg.error;
             }
@@ -102,6 +105,8 @@ void AppController::handleNetEvent(const Network::NetEvent& ev) {
 }
 
 void AppController::connectAndCreate(const std::string& ip, int port) {
+    if (!m_net) m_net = std::make_unique<NetworkClient>();
+
     m_state.lobbySubState = LobbySubState::Connecting;
     m_state.lobbyError.clear();
     m_pendingAction = PendingAction::CreateLobby;
@@ -111,6 +116,8 @@ void AppController::connectAndCreate(const std::string& ip, int port) {
 }
 
 void AppController::connectAndJoin(const std::string& ip, int port, const std::string& code) {
+    if (!m_net) m_net = std::make_unique<NetworkClient>();
+
     m_state.lobbySubState = LobbySubState::Connecting;
     m_state.lobbyError.clear();
     m_pendingAction = PendingAction::JoinLobby;
@@ -119,10 +126,10 @@ void AppController::connectAndJoin(const std::string& ip, int port, const std::s
     m_net->connectAsync(ip, port);
 }
 
-void AppController::sendPlacement(const std::vector<Protocol::ShipPlacement>& ships) {
-    if (!m_net || !m_net->isConnected()) return;
+bool AppController::sendPlacement(const std::vector<Protocol::ShipPlacement>& ships) {
+    if (!m_net || !m_net->isConnected()) return false;
     m_net->sendPlaceShips(ships);
-    m_state.placementSent = true;
+    return true;
 }
 
 void AppController::sendShot(int x, int y) {
@@ -135,8 +142,26 @@ void AppController::resetToMenu() {
         m_net->disconnect();
         m_net.reset();
     }
+    const int music = m_state.musicVolume;
+    const int sfx   = m_state.sfxVolume;
     m_state = ClientState{};
     m_state.scene = AppScene::MainMenu;
+    m_state.musicVolume = music;
+    m_state.sfxVolume   = sfx;
     m_pendingAction = PendingAction::None;
     m_pendingCode.clear();
+}
+
+void AppController::requestExit() {
+    m_state.shouldExit = true;
+}
+
+void AppController::setMusicVolume(int volume) {
+    m_state.musicVolume = volume;
+    AudioManager::instance().setMusicVolume(volume / 100.0f);   // convert to 0.0-1.0
+}
+
+void AppController::setSFXVolume(int volume) {
+    m_state.sfxVolume = volume;
+    AudioManager::instance().setSFXVolume(volume / 100.0f);
 }

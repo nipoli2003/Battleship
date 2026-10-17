@@ -13,7 +13,6 @@ struct ClientState {
     // --- Scene / app ---
     AppScene scene = AppScene::TitleScreen;
     bool shouldExit = false;
-    bool connected = false;
 
     // --- Lobby ---
     LobbySubState lobbySubState = LobbySubState::Setup;
@@ -27,15 +26,6 @@ struct ClientState {
     std::vector<int> yourBoard;
     std::vector<int> enemyBoard;
     std::optional<Protocol::GameOver> gameOver;
-
-    // --- Placement (client-local; only meaningful before placementSent) ---
-    // localBoard is the player's own ship layout during the placement phase.
-    // Once the server transitions us to InGame, AppController resets it; from
-    // then on, StateUpdate.yourBoard/enemyBoard are authoritative.
-    Board localBoard;
-    std::vector<Protocol::ShipPlacement> pendingPlacements;
-    Orientation placementOrientation = Orientation::Horizontal;
-    bool placementSent = false;
 
     // --- Settings ---
     int musicVolume = 70;

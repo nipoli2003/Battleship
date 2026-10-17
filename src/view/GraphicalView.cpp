@@ -75,18 +75,21 @@ void GraphicalView::handleTextInput(std::string& field, int maxLen) {
         field.pop_back();
 }
 
-bool GraphicalView::drawSlider(Rectangle bounds, const char* label, int& value, bool& isDragging) {
+std::optional<int> GraphicalView::drawSlider(Rectangle bounds, const char* label, int currentValue, bool& isDragging) {
     Vector2 mouse = getVirtualMousePosition();
 
+    std::optional<int> newValue;
+    int displayValue = currentValue;
+
     DrawText(label, bounds.x, bounds.y - 22, 18, RAYWHITE);
-    std::string valStr = std::to_string(value) + "%";
+    std::string valStr = std::to_string(currentValue) + "%";
     DrawText(valStr.c_str(), bounds.x + bounds.width - MeasureText(valStr.c_str(), 18), bounds.y - 22, 18, SKYBLUE);
 
     Rectangle track = bounds;
     DrawRectangleRounded(track, 0.4f, 4, Color{30, 45, 60, 255});
     DrawRectangleRoundedLines(track, 0.4f, 4, DARKGRAY);
 
-    float fillWidth = (static_cast<float>(value) / 100.0f) * bounds.width;
+    float fillWidth = (static_cast<float>(currentValue) / 100.0f) * bounds.width;
     Rectangle filledTrack{bounds.x, bounds.y, fillWidth, bounds.height};
     DrawRectangleRounded(filledTrack, 0.4f, 4, SKYBLUE);
 
@@ -101,9 +104,10 @@ bool GraphicalView::drawSlider(Rectangle bounds, const char* label, int& value, 
 
     if (isDragging) {
         if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
-            float normalized = (mouse.x - bounds.x) / bounds.width;
-            normalized = std::clamp(normalized, 0.0f, 1.0f);
-            value = static_cast<int>(normalized * 100.0f);
+            float normalized = std::clamp((mouse.x - bounds.x) / bounds.width, 0.0f, 1.0f);
+            displayValue = static_cast<int>(normalized * 100.0f);
+            if (displayValue != currentValue)
+                newValue = displayValue;
         } else {
             isDragging = false;
         }
@@ -112,10 +116,10 @@ bool GraphicalView::drawSlider(Rectangle bounds, const char* label, int& value, 
     DrawCircleV(knobCenter, knobRadius, (isDragging || knobHovered) ? WHITE : LIGHTGRAY);
     DrawCircleLines(knobCenter.x, knobCenter.y, knobRadius, DARKBLUE);
 
-    return isDragging;
+    return newValue;
 }
 
-void GraphicalView::drawSettingsTriggerButton(float x, float y, bool& showModal) {
+void GraphicalView::drawSettingsTriggerButton(float x, float y) {
     Vector2 mouse = getVirtualMousePosition();
     Rectangle cogBounds{x, y, 130.0f, 30.0f};
     bool hovered = CheckCollisionPointRec(mouse, cogBounds);
@@ -126,11 +130,11 @@ void GraphicalView::drawSettingsTriggerButton(float x, float y, bool& showModal)
 
     if (hovered && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
         playClick();
-        showModal = true;
+        m_showSettingsModal = true;
     }
 }
 
-void GraphicalView::renderSettingsModal(ClientState& state) {
+void GraphicalView::renderSettingsModal(const ClientState& state) {
     Vector2 mouse = getVirtualMousePosition();
 
     DrawRectangle(0, 0, VIRTUAL_WIDTH, VIRTUAL_HEIGHT, Color{0, 0, 0, 190});
@@ -148,14 +152,16 @@ void GraphicalView::renderSettingsModal(ClientState& state) {
     int headerSize = 24;
     DrawText(header, modalX + (modalW - MeasureText(header, headerSize)) / 2.0f, modalY + 25.0f, headerSize, RAYWHITE);
 
+
+
     Rectangle musicSliderRec{modalX + 40.0f, modalY + 105.0f, modalW - 80.0f, 12.0f};
-    if (drawSlider(musicSliderRec, "Music Volume", state.musicVolume, m_draggingMusic)) {
-        AudioManager::instance().setMusicVolume(state.musicVolume / 100.0f);
+    if (auto newVol = drawSlider(musicSliderRec, "Music Volume", state.musicVolume, m_draggingMusic)) {
+        if(m_owner) m_owner->setMusicVolume(*newVol);
     }
 
     Rectangle sfxSliderRec{modalX + 40.0f, modalY + 175.0f, modalW - 80.0f, 12.0f};
-    if (drawSlider(sfxSliderRec, "SFX Volume", state.sfxVolume, m_draggingSFX)) {
-        AudioManager::instance().setSFXVolume(state.sfxVolume / 100.0f);
+    if (auto newVol = drawSlider(sfxSliderRec, "SFX Volume", state.sfxVolume, m_draggingSFX)) {
+        if(m_owner) m_owner->setSFXVolume(*newVol);
     }
 
     Rectangle btnClose{modalX + (modalW - 160.0f) / 2.0f, modalY + modalH - 65.0f, 160.0f, 40.0f};
@@ -170,8 +176,21 @@ void GraphicalView::renderSettingsModal(ClientState& state) {
     }
 }
 
-void GraphicalView::render(ClientState& state) {
+void GraphicalView::resetPlacementState() {
+    m_localBoard.reset();
+    m_pendingPlacements.clear();
+    m_placementOrientation = Orientation::Horizontal;
+    m_placementSent = false;
+}
+
+void GraphicalView::render(const ClientState& state) {
     handleFullscreenToggle();
+
+    // Reset UI placement state on scene entry.
+    if (state.scene == AppScene::InGame && m_prevScene != AppScene::InGame) {
+        resetPlacementState();
+    }
+    m_prevScene = state.scene;
 
     BeginTextureMode(m_target);
     ClearBackground(Color{15, 25, 35, 255});
@@ -230,7 +249,7 @@ void GraphicalView::render(ClientState& state) {
     EndDrawing();
 }
 
-void GraphicalView::renderTitleScreen(ClientState& state) {
+void GraphicalView::renderTitleScreen(const ClientState& state) {
     Vector2 mouse = getVirtualMousePosition();
     float time = static_cast<float>(GetTime());
 
@@ -266,7 +285,7 @@ void GraphicalView::renderTitleScreen(ClientState& state) {
 
     Rectangle cogBounds{40.0f, static_cast<float>(VIRTUAL_HEIGHT - 65), 140.0f, 32.0f};
     bool cogHover = CheckCollisionPointRec(mouse, cogBounds);
-    drawSettingsTriggerButton(40.0f, VIRTUAL_HEIGHT - 65.0f, m_showSettingsModal);
+    drawSettingsTriggerButton(40.0f, VIRTUAL_HEIGHT - 65.0f);
 
     DrawText("[F / F11: Fullscreen]", 40, VIRTUAL_HEIGHT - 32, 16, DARKGRAY);
     const char* version = "Version 1.0";
@@ -275,12 +294,13 @@ void GraphicalView::renderTitleScreen(ClientState& state) {
     bool keyPressed = (GetKeyPressed() > 0) && !IsKeyPressed(KEY_F) && !IsKeyPressed(KEY_F11);
     bool mouseClicked = IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && !cogHover;
 
+
     if (!m_showSettingsModal && (keyPressed || mouseClicked)) {
-        state.scene = AppScene::MainMenu;
+        if (m_owner) m_owner->goToMenu();
     }
 }
 
-void GraphicalView::renderMainMenu(ClientState& state) {
+void GraphicalView::renderMainMenu(const ClientState& state) {
     const char* title = "BATTLESHIP";
     DrawText(title, (VIRTUAL_WIDTH - MeasureText(title, 96)) / 2, VIRTUAL_HEIGHT / 4, 96, SKYBLUE);
 
@@ -295,9 +315,7 @@ void GraphicalView::renderMainMenu(ClientState& state) {
         playClick();
         m_isCreating = true;
         m_codeInput.clear();
-        state.lobbyError.clear();
-        state.lobbySubState = LobbySubState::Setup;
-        state.scene = AppScene::OnlineLobbyWait;
+        if (m_owner) m_owner->openLobbySetup();
     }
 
     Rectangle btnJoin{bx, by + 65.f, bw, bh};
@@ -307,9 +325,7 @@ void GraphicalView::renderMainMenu(ClientState& state) {
         playClick();
         m_isCreating = false;
         m_codeInput.clear();
-        state.lobbyError.clear();
-        state.lobbySubState = LobbySubState::Setup;
-        state.scene = AppScene::OnlineLobbyWait;
+        if (m_owner) m_owner->openLobbySetup();
     }
 
     Rectangle btnExit{(VIRTUAL_WIDTH - bw) / 2.0f, by + 130.0f, bw, bh};
@@ -317,15 +333,15 @@ void GraphicalView::renderMainMenu(ClientState& state) {
     drawButton(btnExit, "Exit Game", hovExit);
     if (hovExit && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
         playClick();
-        state.shouldExit = true;
+        if (m_owner) m_owner->requestExit();
     }
 
     if (!m_showSettingsModal) {
-        drawSettingsTriggerButton(40.0f, VIRTUAL_HEIGHT - 65.0f, m_showSettingsModal);
+        drawSettingsTriggerButton(40.0f, VIRTUAL_HEIGHT - 65.0f);
     }
 }
 
-void GraphicalView::renderLobbySetup(ClientState& state) {
+void GraphicalView::renderLobbySetup(const ClientState& state) {
     const char* heading = m_isCreating ? "CREATE LOBBY" : "JOIN LOBBY";
     DrawText(heading, (VIRTUAL_WIDTH - MeasureText(heading, 32)) / 2, 80, 32, SKYBLUE);
 
@@ -377,7 +393,7 @@ void GraphicalView::renderLobbySetup(ClientState& state) {
     drawButton(btnBack, "Back to Menu", hovBack);
     if (hovBack && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
         playClick();
-        state.scene = AppScene::MainMenu;
+        m_owner->resetToMenu();
     }
 }
 
@@ -414,9 +430,9 @@ void GraphicalView::renderLobbyWait(const ClientState& state) {
     }
 }
 
-void GraphicalView::randomizeLocalFleet(ClientState& state) {
-    state.localBoard.reset();
-    state.pendingPlacements.clear();
+void GraphicalView::randomizeLocalFleet() {
+    m_localBoard.reset();
+    m_pendingPlacements.clear();
 
     std::mt19937 rng{std::random_device{}()};
     std::uniform_int_distribution<int> orientDist(0, 1);
@@ -431,8 +447,8 @@ void GraphicalView::randomizeLocalFleet(ClientState& state) {
             int maxY = (orient == Orientation::Vertical)   ? Board::SIZE - len : Board::SIZE - 1;
             int x = std::uniform_int_distribution<int>(0, maxX)(rng);
             int y = std::uniform_int_distribution<int>(0, maxY)(rng);
-            if (state.localBoard.placeShip(ship, {x, y})) {
-                state.pendingPlacements.push_back({(int)type, x, y, orient == Orientation::Horizontal ? 0 : 1});
+            if (m_localBoard.placeShip(ship, {x, y})) {
+                m_pendingPlacements.push_back({(int)type, x, y, orient == Orientation::Horizontal ? 0 : 1});
                 placed = true;
             }
         }
@@ -454,26 +470,26 @@ void GraphicalView::drawLocalBoard(int startX, int startY, const Board& board) {
     }
 }
 
-void GraphicalView::renderPlacement(ClientState& state) {
-    if (state.placementSent) {
+void GraphicalView::renderPlacement(const ClientState& state) {
+    if (m_placementSent) {
         const char* msg = "Fleet deployed — waiting for opponent...";
         DrawText(msg, (VIRTUAL_WIDTH - MeasureText(msg, 22)) / 2, VIRTUAL_HEIGHT / 2 - 11, 22, YELLOW);
         return;
     }
 
     if (IsKeyPressed(KEY_R))
-        state.placementOrientation = (state.placementOrientation == Orientation::Horizontal)
+        m_placementOrientation = (m_placementOrientation == Orientation::Horizontal)
                                      ? Orientation::Vertical
                                      : Orientation::Horizontal;
 
     DrawText("FLEET DEPLOYMENT", (VIRTUAL_WIDTH - MeasureText("FLEET DEPLOYMENT", 30)) / 2, 35, 30, SKYBLUE);
 
     std::optional<ShipType> currentType;
-    if (state.pendingPlacements.size() < SHIP_ORDER.size())
-        currentType = SHIP_ORDER[state.pendingPlacements.size()];
+    if (m_pendingPlacements.size() < SHIP_ORDER.size())
+        currentType = SHIP_ORDER[m_pendingPlacements.size()];
 
     if (currentType) {
-        Ship tmp(*currentType, state.placementOrientation);
+        Ship tmp(*currentType, m_placementOrientation);
         std::string msg = "Place your ";
         msg += tmp.name();
         msg += " (Length: " + std::to_string(tmp.length()) + "). [R] to rotate.";
@@ -487,18 +503,18 @@ void GraphicalView::renderPlacement(ClientState& state) {
     int gx = (VIRTUAL_WIDTH - gw) / 2;
     int gy = 150;
 
-    drawLocalBoard(gx, gy, state.localBoard);
+    drawLocalBoard(gx, gy, m_localBoard);
 
     Vector2 mouse = getVirtualMousePosition();
 
     if (currentType) {
-        Ship preview(*currentType, state.placementOrientation);
+        Ship preview(*currentType, m_placementOrientation);
         int hx = (int)(mouse.x - gx) / CELL_SIZE;
         int hy = (int)(mouse.y - gy) / CELL_SIZE;
         if (hx >= 0 && hx < Board::SIZE && hy >= 0 && hy < Board::SIZE) {
-            bool valid = state.localBoard.canPlaceShip(preview, {hx, hy});
+            bool valid = m_localBoard.canPlaceShip(preview, {hx, hy});
             Color ghost = valid ? Color{0, 220, 100, 120} : Color{220, 40, 40, 120};
-            bool horiz = (state.placementOrientation == Orientation::Horizontal);
+            bool horiz = (m_placementOrientation == Orientation::Horizontal);
             for (int i = 0; i < preview.length(); ++i) {
                 int cx = horiz ? hx + i : hx;
                 int cy = horiz ? hy : hy + i;
@@ -506,10 +522,10 @@ void GraphicalView::renderPlacement(ClientState& state) {
                     DrawRectangle(gx + cx * CELL_SIZE, gy + cy * CELL_SIZE, CELL_SIZE, CELL_SIZE, ghost);
             }
             if (!m_showSettingsModal && IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && valid) {
-                auto ship = std::make_shared<Ship>(*currentType, state.placementOrientation);
-                state.localBoard.placeShip(ship, {hx, hy});
-                state.pendingPlacements.push_back({(int)*currentType, hx, hy,
-                                                   state.placementOrientation == Orientation::Horizontal ? 0 : 1});
+                auto ship = std::make_shared<Ship>(*currentType, m_placementOrientation);
+                m_localBoard.placeShip(ship, {hx, hy});
+                m_pendingPlacements.push_back({(int)*currentType, hx, hy,
+                                                   m_placementOrientation == Orientation::Horizontal ? 0 : 1});
             }
         }
     }
@@ -519,22 +535,22 @@ void GraphicalView::renderPlacement(ClientState& state) {
     drawButton(btnAuto, "Auto-Deploy", hovAuto);
     if (hovAuto && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
         playClick();
-        randomizeLocalFleet(state);
+        randomizeLocalFleet();
     }
 
-    if (state.pendingPlacements.size() == SHIP_ORDER.size()) {
+    if (m_pendingPlacements.size() == SHIP_ORDER.size()) {
         Rectangle btnConf{(float)(gx + gw + 30), (float)(gy + 110), 160.f, 40.f};
         bool hovConf = !m_showSettingsModal && CheckCollisionPointRec(mouse, btnConf);
         drawButton(btnConf, "Confirm", hovConf);
         if (hovConf && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
             playClick();
-            if (m_owner) m_owner->sendPlacement(state.pendingPlacements);
-            state.placementSent = true;
+            if (m_owner && m_owner->sendPlacement(m_pendingPlacements))
+                m_placementSent = true;
         }
     }
 
     DrawText("Orientation: [R] to Rotate", gx, gy + gw + 25, 18, RAYWHITE);
-    DrawText(state.placementOrientation == Orientation::Horizontal ? "(Horizontal)" : "(Vertical)",
+    DrawText(m_placementOrientation == Orientation::Horizontal ? "(Horizontal)" : "(Vertical)",
              gx + 230, gy + gw + 25, 18, SKYBLUE);
 }
 
