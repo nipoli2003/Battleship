@@ -20,7 +20,6 @@ using NetEvent = std::variant<
     Protocol::LobbyCode,
     Protocol::LobbyJoined,
     Protocol::LobbyError,
-    Protocol::StartGame,
     Protocol::StateUpdate,
     Protocol::GameOver,
     Protocol::ServerError,

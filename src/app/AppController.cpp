@@ -1,7 +1,6 @@
 #include "app/AppController.hpp"
 #include "app/AudioManager.hpp"
 #include "network/Client.hpp"
-#include "raylib.h"
 #include <iostream>
 #include <variant>
 
@@ -56,9 +55,6 @@ void AppController::handleNetEvent(const Network::NetEvent& ev) {
             m_state.lobbySubState = LobbySubState::Error;
             m_state.lobbyError = msg.error;
         }
-        else if constexpr (std::is_same_v<T, Protocol::StartGame>) {
-            onEnterGame();
-        }
         else if constexpr (std::is_same_v<T, Protocol::StateUpdate>) {
             const bool firstUpdate = (m_state.scene != AppScene::InGame);
             m_state.serverState   = msg.state;
@@ -106,8 +102,6 @@ void AppController::handleNetEvent(const Network::NetEvent& ev) {
 }
 
 void AppController::connectAndCreate(const std::string& ip, int port) {
-    if (!m_net) m_net = std::make_unique<NetworkClient>();
-
     m_state.lobbySubState = LobbySubState::Connecting;
     m_state.lobbyError.clear();
     m_pendingAction = PendingAction::CreateLobby;
@@ -117,8 +111,6 @@ void AppController::connectAndCreate(const std::string& ip, int port) {
 }
 
 void AppController::connectAndJoin(const std::string& ip, int port, const std::string& code) {
-    if (!m_net) m_net = std::make_unique<NetworkClient>();
-
     m_state.lobbySubState = LobbySubState::Connecting;
     m_state.lobbyError.clear();
     m_pendingAction = PendingAction::JoinLobby;

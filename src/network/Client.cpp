@@ -167,13 +167,12 @@ void NetworkClient::dispatch(const std::string& line) {
 
     using MT = Protocol::MsgType;
     switch (type) {
-    case MT::LOBBY_CODE:    pushEvent(Protocol::from_json<Protocol::LobbyCode>(line));    break;
-    case MT::LOBBY_JOINED:  pushEvent(Protocol::LobbyJoined{});                            break;
-    case MT::LOBBY_ERROR:   pushEvent(Protocol::from_json<Protocol::LobbyError>(line));   break;
-    case MT::START_GAME:    pushEvent(Protocol::StartGame{});                              break;
-    case MT::STATE_UPDATE:  pushEvent(Protocol::from_json<Protocol::StateUpdate>(line));  break;
-    case MT::GAME_OVER:     pushEvent(Protocol::from_json<Protocol::GameOver>(line));     break;
-    case MT::SERVER_ERROR:  pushEvent(Protocol::from_json<Protocol::ServerError>(line));  break;
+    case MT::LOBBY_CODE:   pushEvent(Protocol::from_json<Protocol::LobbyCode>(line)); break;
+    case MT::LOBBY_JOINED: pushEvent(Protocol::LobbyJoined{}); break;
+    case MT::LOBBY_ERROR:  pushEvent(Protocol::from_json<Protocol::LobbyError>(line)); break;
+    case MT::STATE_UPDATE: pushEvent(Protocol::from_json<Protocol::StateUpdate>(line)); break;
+    case MT::GAME_OVER:    pushEvent(Protocol::from_json<Protocol::GameOver>(line)); break;
+    case MT::SERVER_ERROR: pushEvent(Protocol::from_json<Protocol::ServerError>(line)); break;
     default:
         std::cerr << "[client] unknown message type: " << static_cast<int>(type) << "\n";
         break;
