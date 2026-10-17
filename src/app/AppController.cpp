@@ -81,31 +81,50 @@ void AppController::handleNetEvent(const Network::NetEvent& ev) {
             m_state.lobbySubState = LobbySubState::Error;
             m_state.lobbyError = msg.reason;
         }
+        else if constexpr (std::is_same_v<T, Network::ConnectionResult>) {
+            if (msg.success) {
+                m_state.connected = true;
+                switch (m_pendingAction) {
+                case PendingAction::CreateLobby:
+                    m_net->createLobby();
+                    break;
+                case PendingAction::JoinLobby:
+                    m_net->joinLobby(m_pendingCode);
+                    break;
+                case PendingAction::None:
+                    break;
+                }
+                m_pendingAction = PendingAction::None;
+                // scene stays OnlineLobbyWait; the server's reply drives the next transition
+            } else {
+                m_state.connected = false;
+                m_state.lobbySubState = LobbySubState::Error;
+                m_state.lobbyError = msg.error;
+            }
+        }
     }, ev);
 }
 
 void AppController::connectAndCreate(const std::string& ip, int port) {
     if (!m_net) m_net = std::make_unique<NetworkClient>();
+
     m_state.lobbySubState = LobbySubState::Connecting;
-    if (!m_net->connect(ip, port)) {
-        m_state.lobbySubState = LobbySubState::Error;
-        m_state.lobbyError = "Failed to connect to " + ip;
-        return;
-    }
-    m_state.connected = true;
-    m_net->createLobby();
+    m_state.lobbyError.clear();
+    m_pendingAction = PendingAction::CreateLobby;
+    m_pendingCode.clear();
+
+    m_net->connectAsync(ip, port);
 }
 
 void AppController::connectAndJoin(const std::string& ip, int port, const std::string& code) {
     if (!m_net) m_net = std::make_unique<NetworkClient>();
+
     m_state.lobbySubState = LobbySubState::Connecting;
-    if (!m_net->connect(ip, port)) {
-        m_state.lobbySubState = LobbySubState::Error;
-        m_state.lobbyError = "Failed to connect to " + ip;
-        return;
-    }
-    m_state.connected = true;
-    m_net->joinLobby(code);
+    m_state.lobbyError.clear();
+    m_pendingAction = PendingAction::JoinLobby;
+    m_pendingCode = code;
+
+    m_net->connectAsync(ip, port);
 }
 
 void AppController::sendPlacement(const std::vector<Protocol::ShipPlacement>& ships) {
@@ -126,4 +145,6 @@ void AppController::resetToMenu() {
     }
     m_state = ClientState{};
     m_state.scene = AppScene::MainMenu;
+    m_pendingAction = PendingAction::None;
+    m_pendingCode.clear();
 }

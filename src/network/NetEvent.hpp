@@ -2,13 +2,18 @@
 #define NET_EVENT_HPP
 
 #include "model/Protocol.hpp"
+#include <string>
 #include <variant>
 
 namespace Network {
 
-// Synthetic event: emitted when the listen thread exits.
 struct Disconnected {
     std::string reason;   // "peer closed", "error", "local disconnect"
+};
+
+struct ConnectionResult {
+    bool success{false};
+    std::string error;    // empty on success
 };
 
 using NetEvent = std::variant<
@@ -19,7 +24,8 @@ using NetEvent = std::variant<
     Protocol::StateUpdate,
     Protocol::GameOver,
     Protocol::ServerError,
-    Disconnected
+    Disconnected,
+    ConnectionResult
 >;
 
 } // namespace Network

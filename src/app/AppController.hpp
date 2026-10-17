@@ -26,6 +26,8 @@ class AppController {
     void resetToMenu();
 
   private:
+    enum class PendingAction { None, CreateLobby, JoinLobby };
+
     void drainNetEvents();
     void handleNetEvent(const Network::NetEvent& ev);
     void onEnterGame();
@@ -33,6 +35,8 @@ class AppController {
     ClientState m_state;
     std::unique_ptr<NetworkClient> m_net;
     GraphicalView m_view;
+    PendingAction m_pendingAction{PendingAction::None};
+    std::string m_pendingCode;
 };
 
 #endif
