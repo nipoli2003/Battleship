@@ -577,7 +577,7 @@ void GraphicalView::handleBoardClicks(int ex, int ey) {
 void GraphicalView::renderGame(const ClientState& state) {
     const auto& status = state.statusMessage;
 
-    Color statusColor = (state == Protocol::UserState::YourTurn) ? GREEN : ORANGE;
+    Color statusColor = (state.serverState == Protocol::UserState::YourTurn) ? GREEN : ORANGE;
     DrawText(status.c_str(), (VIRTUAL_WIDTH - MeasureText(status.c_str(), 22)) / 2, 35, 22, statusColor);
 
     int gw = Board::SIZE * CELL_SIZE;
