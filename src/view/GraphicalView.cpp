@@ -77,9 +77,21 @@ void GraphicalView::handleTextInput(std::string& field, int maxLen) {
 
 std::optional<int> GraphicalView::drawSlider(Rectangle bounds, const char* label, int currentValue, bool& isDragging) {
     Vector2 mouse = getVirtualMousePosition();
+    const float knobRadius = bounds.height * 0.75f;
+    
+    Rectangle hitArea{bounds.x - knobRadius, bounds.y - 5.0f, bounds.width + 2.0f * knobRadius, bounds.height + 10.0f};
+    if (CheckCollisionPointRec(mouse, hitArea) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
+        isDragging = true;
 
-    std::optional<int> newValue;
     int displayValue = currentValue;
+    if (isDragging) {
+        if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+            float normalized = std::clamp((mouse.x - bounds.x) / bounds.width, 0.0f, 1.0f);
+            displayValue = static_cast<int>(normalized * 100.0f);
+        } else {
+            isDragging = false;
+        }
+    }
 
     DrawText(label, bounds.x, bounds.y - 22, 18, RAYWHITE);
     std::string valStr = std::to_string(currentValue) + "%";
@@ -94,29 +106,14 @@ std::optional<int> GraphicalView::drawSlider(Rectangle bounds, const char* label
     DrawRectangleRounded(filledTrack, 0.4f, 4, SKYBLUE);
 
     Vector2 knobCenter{bounds.x + fillWidth, bounds.y + bounds.height / 2.0f};
-    float knobRadius = bounds.height * 0.75f;
     bool knobHovered = CheckCollisionPointCircle(mouse, knobCenter, knobRadius);
-
-    Rectangle hitArea{bounds.x - knobRadius, bounds.y - 5.0f, bounds.width + 2.0f * knobRadius, bounds.height + 10.0f};
-    if (CheckCollisionPointRec(mouse, hitArea) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-        isDragging = true;
-    }
-
-    if (isDragging) {
-        if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
-            float normalized = std::clamp((mouse.x - bounds.x) / bounds.width, 0.0f, 1.0f);
-            displayValue = static_cast<int>(normalized * 100.0f);
-            if (displayValue != currentValue)
-                newValue = displayValue;
-        } else {
-            isDragging = false;
-        }
-    }
 
     DrawCircleV(knobCenter, knobRadius, (isDragging || knobHovered) ? WHITE : LIGHTGRAY);
     DrawCircleLines(knobCenter.x, knobCenter.y, knobRadius, DARKBLUE);
 
-    return newValue;
+    if(displayValue != currentValue)
+        return displayValue;
+    return std::nullopt;
 }
 
 void GraphicalView::drawSettingsTriggerButton(float x, float y) {
