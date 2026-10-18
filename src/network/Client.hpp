@@ -2,8 +2,10 @@
 #define CLIENT_HPP
 
 #include "model/Protocol.hpp"
+#include "network/NetEvent.hpp"
 #include <atomic>
-#include <functional>
+#include <mutex>
+#include <optional>
 #include <sockpp/tcp_connector.h>
 #include <string>
 #include <thread>
@@ -11,45 +13,54 @@
 
 class NetworkClient {
   public:
-    NetworkClient(std::function<void(std::string code)> onLobbyCode, std::function<void()> onLobbyJoined,
-                  std::function<void(std::string reason)> onLobbyError, std::function<void()> onStartGame,
-                  std::function<void(Protocol::StateUpdate)> onStateUpdate,
-                  std::function<void(Protocol::GameOver)> onGameOver)
-        : onLobbyCode(onLobbyCode), onLobbyJoined(onLobbyJoined), onLobbyError(onLobbyError),
-          onStartGame(onStartGame), onStateUpdate(onStateUpdate), onGameOver(onGameOver) {}
+    NetworkClient() = default;
+    ~NetworkClient() noexcept; // must not throw; disconnects if connected
 
-    bool connect(std::string ip, int port);
-    void disconnect();
+    NetworkClient(const NetworkClient&) = delete;
+    NetworkClient& operator=(const NetworkClient&) = delete;
 
-    // lobby managment
+    // Blocking connect. Returns false on any failure; no exception escapes.
+    bool connect(const std::string& ip, int port) noexcept;
+
+    // Non-blocking. Spawns a worker thread that performs the connect and
+    // pushes a Network::ConnectionResult into the inbox when done.
+    void connectAsync(const std::string& ip, int port);
+
+    // Idempotent, never throws. Safe to call from the destructor or after
+    // a failed or incomplete connect.
+    void disconnect() noexcept;
+
+    // Lobby
     void createLobby();
-    void joinLobby(std::string code);
+    void joinLobby(const std::string& code);
 
-    // gameplay
-    void sendPlaceShips(const std::vector<Protocol::ShipPlacement> &payload);
+    // Gameplay
+    void sendPlaceShips(const std::vector<Protocol::ShipPlacement>& payload);
     void sendFireShot(int x, int y);
 
-    [[nodiscard]] bool isConnected() const {
+    [[nodiscard]] bool isConnected() const noexcept {
         return m_connected.load();
     }
 
-  private:
-    void sendMsg(const std::string &line); // TODO: how to make sure we're sending a protocol.hpp struct?
+    // Main thread: pop one pending event, if any. Never blocks.
+    std::optional<Network::NetEvent> poll();
 
-    void listenLoop(); // runs on background thread
-    void dispatch(const std::string &line);
+  private:
+    void sendMsg(const std::string& line);   // thread-safe
+    void listenLoop() noexcept;              // background thread; must not throw
+    void dispatch(const std::string& line);  // runs on listen thread; pushes to inbox
+
+    void pushEvent(Network::NetEvent ev) noexcept; // thread-safe; never throws
 
     sockpp::tcp_socket m_sock;
-    std::atomic<bool> m_connected;
+    std::atomic<bool> m_connected{false};
     std::thread m_listenThread;
+    std::thread m_connectThread; // for connectAsync
 
-    // callbacks
-    std::function<void(std::string code)> onLobbyCode;
-    std::function<void()> onLobbyJoined;
-    std::function<void(std::string reason)> onLobbyError;
-    std::function<void()> onStartGame;
-    std::function<void(Protocol::StateUpdate)> onStateUpdate;
-    std::function<void(Protocol::GameOver)> onGameOver;
+    std::mutex m_sendMutex;
+
+    std::mutex m_inboxMutex;
+    std::vector<Network::NetEvent> m_inbox;
 };
 
 #endif

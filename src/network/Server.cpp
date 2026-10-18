@@ -26,7 +26,7 @@ void GameServer::run(int port) {
 }
 
 std::string GameServer::make_code() {
-    static const char chars[] = "ABCDEFXY0123456789";
+    static const char chars[] = "ABCDEXY0123456789";
     static std::mt19937 rng(std::random_device{}());
     static std::uniform_int_distribution<> dist(0, sizeof(chars) - 2);
 
@@ -163,8 +163,12 @@ void GameServer::runSession(ClientPtr p0,  ClientPtr p1) {
             auto res = clients[idx]->socket.read(tmp, sizeof(tmp));
             if (!res || res.value() == 0) {
                 done = true;
-                // wake the other readed out of its blocking() read s.t. it can observe 'done' and return
                 int other = 1 - idx;
+                // tell the survivor their opponent left
+                sendLine(*clients[other], Protocol::to_json(Protocol::GameOver{
+                    .result = Protocol::UserState::Victory,  // or add an Abandoned state
+                    .message = "Your opponent disconnected. You win by default."}));
+                // then wake the survivor's blocked read
                 clients[other]->socket.shutdown(SHUT_RDWR);
                 break;
             }
