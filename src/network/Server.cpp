@@ -2,7 +2,7 @@
 #include <iostream>
 #include <random>
 #include <thread>
-#include "network/Log.hpp"
+#include "helpers/Log.hpp"
 
 void GameServer::run(int port) {
     sockpp::tcp_acceptor acc;
@@ -122,7 +122,7 @@ void GameServer::handle_new(ClientPtr client) {
         m_registry[code] = {client, std::chrono::steady_clock::now()};
     }
     sendLine(*client, Protocol::to_json(Protocol::LobbyCode{.code = code}));
-    LOG_INFO("[+] Lobby created: ", code);
+    LOG_SRV_INFO("[+] Lobby created: ", code);
 }
 
 void GameServer::handle_join(ClientPtr client, const std::string &code) {
@@ -137,12 +137,12 @@ void GameServer::handle_join(ClientPtr client, const std::string &code) {
     }
 
     if (!p0) {
-        LOG_WARN("[!] Join failed: Lobby ", code, " not found");
+        LOG_SRV_WARN("[!] Join failed: Lobby ", code, " not found");
         sendLine(*client, Protocol::to_json(Protocol::LobbyError{.error = "Lobby not found"}));
         return;
     }
 
-    LOG_INFO("[+] Lobby joined: ", code);
+    LOG_SRV_INFO("[+] Lobby joined: ", code);
     std::thread(&GameServer::runSession, this, p0, std::move(client)).detach();
 }
 
@@ -150,7 +150,7 @@ void GameServer::runSession(ClientPtr p0,  ClientPtr p1) {
     static std::atomic<int> next_session_id{1};
     int sessionId = next_session_id++;
 
-    LOG_INFO("[session ", sessionId, "] Started");
+    LOG_SRV_INFO("[session ", sessionId, "] Started");
 
     GameSession session;
     ClientPtr clients[2] = {p0, p1};
@@ -199,7 +199,7 @@ void GameServer::runSession(ClientPtr p0,  ClientPtr p1) {
     t1.join();
     // clients[] go out of scope and are destroyed
 
-    LOG_INFO("[session ", sessionId, "] Ended");
+    LOG_SRV_INFO("[session ", sessionId, "] Ended");
 }
 
 void GameServer::handleLine(GameSession &session, ClientPtr clients[2], int playerIdx, const std::string &line) {
@@ -207,34 +207,34 @@ void GameServer::handleLine(GameSession &session, ClientPtr clients[2], int play
     try {
         type = Protocol::peek_type(line);
     } catch (...) {
-        LOG_WARN("[session] Bad message from player ", playerIdx);
+        LOG_SRV_WARN("[session] Bad message from player ", playerIdx);
         return;
     }
 
     if (type == Protocol::PLACE_SHIPS) {
         auto msg = Protocol::from_json<Protocol::PlaceShips>(line);
         if (!session.placeShips(playerIdx, msg.ships)) {
-            LOG_WARN("[session] Player ", playerIdx, " invalid placement");
+            LOG_SRV_WARN("[session] Player ", playerIdx, " invalid placement");
             sendLine(*clients[playerIdx], Protocol::to_json(Protocol::ServerError{.error = "Invalid placement"}));
             return;
         }
-        LOG_INFO("[session] Player ", playerIdx, " placed ships");
+        LOG_SRV_INFO("[session] Player ", playerIdx, " placed ships");
         pushToAll(session, clients);
 
     } else if (type == Protocol::FIRE_SHOT) {
         auto msg = Protocol::from_json<Protocol::FireShot>(line);
         
         if (!session.fire(playerIdx, {msg.x, msg.y})) {
-            LOG_WARN("[session] Player ", playerIdx, " invalid shot at (", msg.x, ", ", msg.y, ")");
+            LOG_SRV_WARN("[session] Player ", playerIdx, " invalid shot at (", msg.x, ", ", msg.y, ")");
             sendLine(*clients[playerIdx], Protocol::to_json(Protocol::ServerError{.error = "Invalid shot"}));
             return;
         }
         
         auto snapshot = session.buildSnapshot(playerIdx);
-        LOG_GAME("[session] Player ", playerIdx, " fired at (", msg.x, ", ", msg.y, ") -> ", snapshot.statusMessage);
+        LOG_SRV_GAME("[session] Player ", playerIdx, " fired at (", msg.x, ", ", msg.y, ") -> ", snapshot.statusMessage);
 
         if (session.isOver()) {
-            LOG_GAME("[session] Game over! Player ", playerIdx, " wins.");
+            LOG_SRV_GAME("[session] Game over! Player ", playerIdx, " wins.");
             for (int i = 0; i < 2; ++i) {
                 bool won = (i == playerIdx);
                 sendLine(*clients[i], Protocol::to_json(Protocol::GameOver{
