@@ -2,6 +2,7 @@
 #include <iostream>
 #include <random>
 #include <thread>
+#include "network/Log.hpp"
 
 void GameServer::run(int port) {
     sockpp::tcp_acceptor acc;
@@ -121,7 +122,7 @@ void GameServer::handle_new(ClientPtr client) {
         m_registry[code] = {client, std::chrono::steady_clock::now()};
     }
     sendLine(*client, Protocol::to_json(Protocol::LobbyCode{.code = code}));
-    std::cout << "[+] Lobby created: " << code << "\n";
+    LOG_INFO("[+] Lobby created: ", code);
 }
 
 void GameServer::handle_join(ClientPtr client, const std::string &code) {
@@ -136,16 +137,21 @@ void GameServer::handle_join(ClientPtr client, const std::string &code) {
     }
 
     if (!p0) {
+        LOG_WARN("[!] Join failed: Lobby ", code, " not found");
         sendLine(*client, Protocol::to_json(Protocol::LobbyError{.error = "Lobby not found"}));
         return;
     }
 
-    // sendLine(*p1, Protocol::to_json(Protocol::LobbyJoined{})); // notified later in runSession
-    std::cout << "[+] Lobby joined: " << code << "\n";
+    LOG_INFO("[+] Lobby joined: ", code);
     std::thread(&GameServer::runSession, this, p0, std::move(client)).detach();
 }
 
 void GameServer::runSession(ClientPtr p0,  ClientPtr p1) {
+    static std::atomic<int> next_session_id{1};
+    int sessionId = next_session_id++;
+
+    LOG_INFO("[session ", sessionId, "] Started");
+
     GameSession session;
     ClientPtr clients[2] = {p0, p1};
 
@@ -191,9 +197,9 @@ void GameServer::runSession(ClientPtr p0,  ClientPtr p1) {
     std::thread t1(readerFor, 1);
     t0.join();
     t1.join();
-
-    std::cout << "[session] ended\n";
     // clients[] go out of scope and are destroyed
+
+    LOG_INFO("[session ", sessionId, "] Ended");
 }
 
 void GameServer::handleLine(GameSession &session, ClientPtr clients[2], int playerIdx, const std::string &line) {
@@ -201,36 +207,41 @@ void GameServer::handleLine(GameSession &session, ClientPtr clients[2], int play
     try {
         type = Protocol::peek_type(line);
     } catch (...) {
+        LOG_WARN("[session] Bad message from player ", playerIdx);
         return;
     }
 
     if (type == Protocol::PLACE_SHIPS) {
         auto msg = Protocol::from_json<Protocol::PlaceShips>(line);
         if (!session.placeShips(playerIdx, msg.ships)) {
-            sendLine(*clients[playerIdx],
-                     Protocol::to_json(Protocol::ServerError{.error = "Invalid placement"}));
+            LOG_WARN("[session] Player ", playerIdx, " invalid placement");
+            sendLine(*clients[playerIdx], Protocol::to_json(Protocol::ServerError{.error = "Invalid placement"}));
             return;
         }
+        LOG_INFO("[session] Player ", playerIdx, " placed ships");
         pushToAll(session, clients);
 
     } else if (type == Protocol::FIRE_SHOT) {
         auto msg = Protocol::from_json<Protocol::FireShot>(line);
-        // invalid shot
+        
         if (!session.fire(playerIdx, {msg.x, msg.y})) {
+            LOG_WARN("[session] Player ", playerIdx, " invalid shot at (", msg.x, ", ", msg.y, ")");
             sendLine(*clients[playerIdx], Protocol::to_json(Protocol::ServerError{.error = "Invalid shot"}));
             return;
         }
-        // game over
-        else if (session.isOver()) {
+        
+        auto snapshot = session.buildSnapshot(playerIdx);
+        LOG_GAME("[session] Player ", playerIdx, " fired at (", msg.x, ", ", msg.y, ") -> ", snapshot.statusMessage);
+
+        if (session.isOver()) {
+            LOG_GAME("[session] Game over! Player ", playerIdx, " wins.");
             for (int i = 0; i < 2; ++i) {
                 bool won = (i == playerIdx);
                 sendLine(*clients[i], Protocol::to_json(Protocol::GameOver{
                                           .result = won ? Protocol::UserState::Victory : Protocol::UserState::Defeat,
                                           .message = won ? "You sank the enemy fleet!" : "Your fleet has been destroyed."}));
             }
-        }
-        // normal shot
-        else {
+        } else {
             pushToAll(session, clients);
         }
     }
