@@ -21,30 +21,26 @@ sudo apt-get install -y build-essential cmake ninja-build pkg-config \
 
 macOS works out of the box, Windows is untested
 
-## Build
-```bash
-cmake -B build
-cmake --build build
-```
-Produces `build/battleship` (client) and `build/battleship_server` (server).
-
-## Run
-To launch **two clients and a server**:
+## Build, Test & Run
+To buils, test and launch **two clients and a server**:
 ```bash
 ./run.sh
 ```
-Or run them yourself:
+Or do it manually:
 ```bash
+# build
+cmake -B build
+cmake --build build
+# test
+ctest --test-dir build --output-on-failure
+# run
 ./build/battleship_server
 ./build/battleship
 ./build/battleship
 ```
-The server is currently hardcoded to listen to port 9000.
 
-## Tests
-```bash
-ctest --test-dir build --output-on-failure
-```
+The executables are `build/battleship` and `build/battleship_server`
+The server is currently hardcoded to listen to port 9000.
 
 ## How it works
 - read our SRS (Software Requirement Specification):
