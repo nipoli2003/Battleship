@@ -5,6 +5,7 @@
 #include "model/Protocol.hpp"
 #include "network/NetEvent.hpp"
 #include "view/GraphicalView.hpp"
+#include "controller/LocalMatch.hpp"
 #include <memory>
 #include <string>
 #include <vector>
@@ -26,6 +27,8 @@ class AppController {
     bool sendPlacement(const std::vector<Protocol::ShipPlacement>& ships);
     void sendShot(int x, int y);
     void resetToMenu();
+    
+    void startLocalBotMatch();
 
     void requestExit();
 
@@ -33,11 +36,17 @@ class AppController {
     void setSFXVolume(int volume); // 0-100
 
   private:
+    enum class Mode { Online, Local };
     enum class PendingAction { None, CreateLobby, JoinLobby };
 
     void drainNetEvents();
     void handleNetEvent(const Network::NetEvent& ev);
     void onEnterGame();
+
+    void applyLocalSnapshot(const Protocol::StateUpdate& snap);
+
+    Mode m_mode{Mode::Online};
+    std::unique_ptr<LocalMatch> m_localMatch;
 
     ClientState m_state;
     std::unique_ptr<NetworkClient> m_net;
