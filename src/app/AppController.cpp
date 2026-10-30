@@ -15,13 +15,30 @@ void AppController::run() {
     m_view.setOwner(this);
 
     while (!m_view.shouldClose() && !m_state.shouldExit) {
-        drainNetEvents();
+        if (m_mode == Mode::Local && m_localMatch) {
+            m_localMatch->tick();
+            if (auto snap = m_localMatch->consumeUpdate())
+                applyLocalSnapshot(*snap);
+        } else {
+            drainNetEvents();
+        }
         m_view.render(m_state);
         AudioManager::instance().update();
     }
 
     m_view.close();
     AudioManager::instance().close();
+}
+
+void AppController::applyLocalSnapshot(const Protocol::StateUpdate &snap) {
+    m_state.serverState = snap.state;
+    m_state.statusMessage = snap.statusMessage;
+    m_state.yourBoard = snap.yourBoard;
+    m_state.enemyBoard = snap.enemyBoard;
+
+    if ((snap.state == Protocol::UserState::Victory || snap.state == Protocol::UserState::Defeat) && !m_state.gameOver) {
+        m_state.gameOver = Protocol::GameOver{.result = snap.state, .message = snap.statusMessage};
+    }
 }
 
 void AppController::drainNetEvents() {
@@ -126,18 +143,29 @@ void AppController::connectAndJoin(const std::string& ip, int port, const std::s
     m_net->connectAsync(ip, port);
 }
 
-bool AppController::sendPlacement(const std::vector<Protocol::ShipPlacement>& ships) {
-    if (!m_net || !m_net->isConnected()) return false;
+bool AppController::sendPlacement(const std::vector<Protocol::ShipPlacement> &ships) {
+    if (m_mode == Mode::Local)
+        return m_localMatch && m_localMatch->submitPlacement(ships);
+    if (!m_net || !m_net->isConnected())
+        return false;
     m_net->sendPlaceShips(ships);
     return true;
 }
 
 void AppController::sendShot(int x, int y) {
-    if (!m_net || !m_net->isConnected()) return;
+    if (m_mode == Mode::Local) {
+        if (m_localMatch)
+            m_localMatch->submitShot(x, y);
+        return;
+    }
+    if (!m_net || !m_net->isConnected())
+        return;
     m_net->sendFireShot(x, y);
 }
 
 void AppController::resetToMenu() {
+    m_localMatch.reset();
+    m_mode = Mode::Online;
     if (m_net) {
         m_net->disconnect();
         m_net.reset();
@@ -164,4 +192,26 @@ void AppController::setMusicVolume(int volume) {
 void AppController::setSFXVolume(int volume) {
     m_state.sfxVolume = volume;
     AudioManager::instance().setSFXVolume(volume / 100.0f);
+}
+
+void AppController::startLocalBotMatch() {
+    if (m_net) {
+        m_net->disconnect();
+        m_net.reset();
+    }
+    m_mode = Mode::Local;
+    m_localMatch = std::make_unique<LocalMatch>(0);
+    m_localMatch->start();
+
+    const int music = m_state.musicVolume;
+    const int sfx = m_state.sfxVolume;
+    m_state = ClientState{};
+    m_state.musicVolume = music;
+    m_state.sfxVolume = sfx;
+    m_state.scene = AppScene::InGame;
+    m_state.serverState = Protocol::UserState::PlacementPhase;
+
+    // NOTE: first snapshot is handled by run()'s consumeUpdate() on the next frame
+    // if (auto snap = m_localMatch->consumeUpdate())
+    // applyLocalSnapshot(*snap);
 }
