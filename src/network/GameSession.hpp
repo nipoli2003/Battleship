@@ -22,7 +22,7 @@ class GameSession {
     }
 
     // builds a tailored StateUpdate for playerIdx:
-    // - yourBoard shows ships; enemyBoard masks ShipPresent as Empty.
+    // - yourBoard shows ships; enemyBoard masks present ships as Empty.
     // - Victory/Defeat are flipped correctly per perspective.
     Protocol::StateUpdate buildSnapshot(int playerIdx) const;
 

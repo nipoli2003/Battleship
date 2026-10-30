@@ -23,7 +23,6 @@ enum class CellState {
     Cruiser,
     Submarine,
     Destroyer,
-    ShipPresent
 };
 
 enum class AttackResult {

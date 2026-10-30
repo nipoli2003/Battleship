@@ -102,7 +102,7 @@ Protocol::StateUpdate GameSession::buildSnapshot(int playerIdx) const {
             out.yourBoard.push_back(static_cast<int>(myBoard.getCell(x, y)));
 
             CellState ec = foeBoard.getCell(x, y);
-            if (ec == CellState::ShipPresent)
+            if (ec != CellState::Empty && ec != CellState::Hit && ec != CellState::Miss)
                 ec = CellState::Empty; // hide unshot ships
             out.enemyBoard.push_back(static_cast<int>(ec));
         }
