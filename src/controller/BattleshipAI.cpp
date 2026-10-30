@@ -1,8 +1,9 @@
 #include "controller/BattleshipAI.hpp"
+#include "helpers/Log.hpp"
 #include <algorithm>
 #include <chrono>
 
-BattleshipAI::BattleshipAI() 
+BattleshipAI::BattleshipAI()
     : m_rng(static_cast<unsigned>(std::chrono::steady_clock::now().time_since_epoch().count())) {
     reset();
 }
@@ -53,23 +54,21 @@ void BattleshipAI::recordShotResult(Coordinate coord, AttackResult result) {
 
 void BattleshipAI::addNeighbors(Coordinate c) {
     const std::vector<Coordinate> neighbors = {
-        {c.x + 1, c.y}, {c.x - 1, c.y},
-        {c.x, c.y + 1}, {c.x, c.y - 1}
-    };
+        {c.x + 1, c.y}, {c.x - 1, c.y}, {c.x, c.y + 1}, {c.x, c.y - 1}};
 
-    for (const auto& n : neighbors) {
+    for (const auto &n : neighbors) {
         if (n.x >= 0 && n.x < Board::SIZE && n.y >= 0 && n.y < Board::SIZE) {
             m_priorityTargets.push_back(n);
         }
     }
 }
 
-void BattleshipAI::placeShipsRandomly(Board& board) {
-    // True hardware entropy device to avoid seed repetition
+const ShiPlacement BattleshipAI::generateLegalPlacement() {
+    // for now, we just place the ships randomly
     std::random_device rd;
     std::mt19937 rng(rd());
 
-    std::uniform_int_distribution<int> posDist(0, Board::SIZE - 1);
+    Board tmp; // scratch board for validation
     std::uniform_int_distribution<int> orientDist(0, 1);
 
     const std::vector<ShipType> shipTypes = {
@@ -77,17 +76,16 @@ void BattleshipAI::placeShipsRandomly(Board& board) {
         ShipType::Battleship,
         ShipType::Cruiser,
         ShipType::Submarine,
-        ShipType::Destroyer
-    };
+        ShipType::Destroyer};
+
+    ShiPlacement placement;
+    placement.reserve(shipTypes.size());
 
     for (auto type : shipTypes) {
         bool placed = false;
-        int attempts = 0;
-
-        while (!placed && attempts < 1000) {
-            attempts++;
+        for (int attempt = 0; !placed && attempt < 1000; ++attempt) {
             auto orientation = (orientDist(rng) == 0) ? Orientation::Horizontal : Orientation::Vertical;
-            
+
             // Generate coordinates constrained to board limits based on orientation
             Ship testShip(type, orientation);
             int maxX = (orientation == Orientation::Horizontal) ? (Board::SIZE - testShip.length()) : (Board::SIZE - 1);
@@ -95,10 +93,15 @@ void BattleshipAI::placeShipsRandomly(Board& board) {
 
             std::uniform_int_distribution<int> xDist(0, maxX);
             std::uniform_int_distribution<int> yDist(0, maxY);
-
             Coordinate coord{xDist(rng), yDist(rng)};
-            auto ship = std::make_shared<Ship>(type, orientation);
-            placed = board.placeShip(ship, coord);
+
+            if (tmp.placeShip(std::make_shared<Ship>(type, orientation), coord)) {
+                placement.push_back({type, {coord, orientation}});
+                placed = true;
+            }
         }
+        if (!placed)
+            LOG_SRV_WARN("failed to place ships");
     }
+    return placement;
 }
