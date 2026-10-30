@@ -25,6 +25,8 @@ bool LocalMatch::submitPlacement(const std::vector<Protocol::ShipPlacement> &shi
     if (m_engine.bothReady())
         m_engine.finishPlacement();
     markDirty();
+    if (isBotTurn())
+        addBotDelay();
     return true;
 }
 
@@ -34,6 +36,8 @@ bool LocalMatch::submitShot(int x, int y) {
     if (!m_engine.fire(m_humanIdx, {x, y}))
         return false;
     markDirty();
+    if (isBotTurn())
+        addBotDelay();
     return true;
 }
 
@@ -52,10 +56,13 @@ bool LocalMatch::isBotTurn() const {
 }
 
 void LocalMatch::tick() {
-    if (isOver() || !isBotTurn())
+    if (isOver() || !isBotTurn() || (std::chrono::steady_clock::now() < m_fireTime))
         return;
     if (botFireOnce())
         markDirty();
+    // hit retains turn -> re-arm so the bot keeps firing until a miss
+    if (isBotTurn() && !isOver())
+        addBotDelay();
 }
 
 bool LocalMatch::botFireOnce() {
@@ -68,10 +75,6 @@ bool LocalMatch::botFireOnce() {
     return true;
 }
 
-Protocol::StateUpdate LocalMatch::snapshotForHuman() const {
-    return m_engine.buildPlayerSnapshot(m_humanIdx);
-}
-
 bool LocalMatch::isOver() const {
     auto s = m_engine.getSnapshot().state;
     return s == MatchState::Victory || s == MatchState::Defeat;
@@ -82,4 +85,8 @@ std::optional<Protocol::StateUpdate> LocalMatch::consumeUpdate() {
         return std::nullopt;
     m_dirty = false;
     return m_engine.buildPlayerSnapshot(m_humanIdx);
+}
+
+void LocalMatch::addBotDelay() {
+    m_fireTime = std::chrono::steady_clock::now() + std::chrono::milliseconds(m_tickDelay);
 }
