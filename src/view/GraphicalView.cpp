@@ -325,7 +325,16 @@ void GraphicalView::renderMainMenu(const ClientState& state) {
         if (m_owner) m_owner->openLobbySetup();
     }
 
-    Rectangle btnExit{(VIRTUAL_WIDTH - bw) / 2.0f, by + 130.0f, bw, bh};
+    Rectangle btnBot{bx, by + 130.f, bw, bh};
+    bool hovBot = !m_showSettingsModal && CheckCollisionPointRec(mouse, btnBot);
+    drawButton(btnBot, "Play vs Bot", hovBot);
+    if (hovBot && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+        playClick();
+        if (m_owner)
+            m_owner->startLocalBotMatch();
+    }
+
+    Rectangle btnExit{(VIRTUAL_WIDTH - bw) / 2.0f, by + 195.0f, bw, bh};
     bool hovExit = !m_showSettingsModal && CheckCollisionPointRec(mouse, btnExit);
     drawButton(btnExit, "Exit Game", hovExit);
     if (hovExit && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
