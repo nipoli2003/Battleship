@@ -63,7 +63,7 @@ void BattleshipAI::addNeighbors(Coordinate c) {
     }
 }
 
-const ShiPlacement BattleshipAI::generateLegalPlacement() {
+const ShipPlacement BattleshipAI::generateLegalPlacement() {
     // for now, we just place the ships randomly
     std::random_device rd;
     std::mt19937 rng(rd());
@@ -78,7 +78,7 @@ const ShiPlacement BattleshipAI::generateLegalPlacement() {
         ShipType::Submarine,
         ShipType::Destroyer};
 
-    ShiPlacement placement;
+    ShipPlacement placement;
     placement.reserve(shipTypes.size());
 
     for (auto type : shipTypes) {

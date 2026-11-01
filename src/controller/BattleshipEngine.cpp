@@ -14,7 +14,7 @@ void BattleshipEngine::startNewGame() {
     m_snapshot.statusMessage = "Waiting for both players to place ships.";
 }
 
-bool BattleshipEngine::placeShips(int playerIdx, const ShiPlacement &ships) {
+bool BattleshipEngine::placeShips(int playerIdx, const ShipPlacement &ships) {
     if (m_placement_done[playerIdx])
         return false;
 

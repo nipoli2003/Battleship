@@ -4,7 +4,7 @@
 #include <vector>
 #include <random>
 
-using ShiPlacement = std::vector<std::pair<ShipType, std::pair<Coordinate, Orientation>>>;
+using ShipPlacement = std::vector<std::pair<ShipType, std::pair<Coordinate, Orientation>>>;
 
 class BattleshipAI {
 public:
@@ -15,7 +15,7 @@ public:
     void reset();
 
     // populate ships during match setup
-    const ShiPlacement generateLegalPlacement();
+    const ShipPlacement generateLegalPlacement();
 
 private:
     std::vector<Coordinate> m_remainingTargets;

@@ -5,7 +5,7 @@
 #include "model/Protocol.hpp"
 #include <vector>
 
-using ShiPlacement = std::vector<std::pair<ShipType, std::pair<Coordinate, Orientation>>>;
+using ShipPlacement = std::vector<std::pair<ShipType, std::pair<Coordinate, Orientation>>>;
 
 class BattleshipEngine {
   public:
@@ -14,7 +14,7 @@ class BattleshipEngine {
     void startNewGame();
 
     // Placement phase methods
-    bool placeShips(int playerIdx, const ShiPlacement &ships);
+    bool placeShips(int playerIdx, const ShipPlacement &ships);
     bool isPlacementDone(int playerIdx) const noexcept { return m_placement_done[playerIdx]; }
     bool bothReady() const noexcept { return m_placement_done[0] && m_placement_done[1]; }
     void finishPlacement();
