@@ -42,6 +42,7 @@ class GraphicalView : public IView {
 
     // drawing helpers
     void renderSettingsModal(const ClientState& state);
+    void renderExitConfirmModal();
     void drawSettingsTriggerButton(float x, float y);
     std::optional<int> drawSlider(Rectangle bounds, const char* label, int currentValue, bool& isDragging);
     void drawGrid(int startX, int startY, const std::vector<int>& cells, bool hideShips, bool isEnemy);
@@ -57,6 +58,9 @@ class GraphicalView : public IView {
     bool m_showSettingsModal{false};
     bool m_draggingMusic{false};
     bool m_draggingSFX{false};
+
+    // --- Exit confirmation (main thread only) ---
+    bool m_showExitConfirm{false};
 
     // --- Lobby input (main thread only) ---
     bool m_isCreating{true};
