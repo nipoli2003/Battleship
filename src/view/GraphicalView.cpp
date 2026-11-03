@@ -173,6 +173,52 @@ void GraphicalView::renderSettingsModal(const ClientState& state) {
     }
 }
 
+void GraphicalView::renderExitConfirmModal() {
+    Vector2 mouse = getVirtualMousePosition();
+
+    DrawRectangle(0, 0, VIRTUAL_WIDTH, VIRTUAL_HEIGHT, Color{0, 0, 0, 190});
+
+    float modalW = 460.0f;
+    float modalH = 200.0f;
+    float modalX = (VIRTUAL_WIDTH - modalW) / 2.0f;
+    float modalY = (VIRTUAL_HEIGHT - modalH) / 2.0f;
+    Rectangle modalRec{modalX, modalY, modalW, modalH};
+
+    DrawRectangleRec(modalRec, Color{20, 32, 45, 255});
+    DrawRectangleLinesEx(modalRec, 2, SKYBLUE);
+
+    const char* question = "Are you sure you want to quit?";
+    int questionSize = 24;
+    DrawText(question, modalX + (modalW - MeasureText(question, questionSize)) / 2.0f, modalY + 40.0f, questionSize, RAYWHITE);
+
+    float btnW = 140.0f, btnH = 40.0f, gap = 30.0f;
+    float btnY = modalY + modalH - 70.0f;
+    Rectangle btnYes{modalX + modalW / 2.0f - btnW - gap / 2.0f, btnY, btnW, btnH};
+    Rectangle btnNo{modalX + modalW / 2.0f + gap / 2.0f, btnY, btnW, btnH};
+
+    bool hovYes = CheckCollisionPointRec(mouse, btnYes);
+    bool hovNo = CheckCollisionPointRec(mouse, btnNo);
+
+    // Yes: red
+    DrawRectangleRec(btnYes, hovYes ? Color{200, 50, 50, 255} : Color{150, 30, 30, 255});
+    DrawRectangleLinesEx(btnYes, 2, RED);
+    DrawText("Yes", btnYes.x + (btnW - MeasureText("Yes", 20)) / 2.0f, btnYes.y + (btnH - 20) / 2.0f, 20, RAYWHITE);
+
+    // No: white
+    DrawRectangleRec(btnNo, hovNo ? WHITE : RAYWHITE);
+    DrawRectangleLinesEx(btnNo, 2, LIGHTGRAY);
+    DrawText("No", btnNo.x + (btnW - MeasureText("No", 20)) / 2.0f, btnNo.y + (btnH - 20) / 2.0f, 20, BLACK);
+
+    if (hovYes && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+        playClick();
+        m_showExitConfirm = false;
+        if (m_owner) m_owner->resetToMenu();
+    } else if ((hovNo && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) || IsKeyPressed(KEY_ESCAPE)) {
+        playClick();
+        m_showExitConfirm = false;
+    }
+}
+
 void GraphicalView::resetPlacementState() {
     m_localBoard.reset();
     m_pendingPlacements.clear();
@@ -188,6 +234,10 @@ void GraphicalView::render(const ClientState& state) {
         resetPlacementState();
     }
     m_prevScene = state.scene;
+
+    // Don't leave the quit popup open if we've left the game (e.g. opponent disconnected).
+    if (state.scene != AppScene::InGame)
+        m_showExitConfirm = false;
 
     BeginTextureMode(m_target);
     ClearBackground(Color{15, 25, 35, 255});
@@ -220,6 +270,10 @@ void GraphicalView::render(const ClientState& state) {
 
     if (m_showSettingsModal) {
         renderSettingsModal(state);
+    }
+
+    if (m_showExitConfirm) {
+        renderExitConfirmModal();
     }
 
     EndTextureMode();
@@ -468,6 +522,14 @@ void GraphicalView::drawLocalBoard(int startX, int startY, const Board& board) {
 }
 
 void GraphicalView::renderPlacement(const ClientState& state) {
+    Rectangle btnLeave{20.f, 20.f, 100.f, 35.f};
+    bool hovLeave = !m_showSettingsModal && !m_showExitConfirm && CheckCollisionPointRec(getVirtualMousePosition(), btnLeave);
+    drawButton(btnLeave, "< Menu", hovLeave);
+    if (hovLeave && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+        playClick();
+        m_showExitConfirm = true;
+    }
+
     if (m_placementSent) {
         const char* msg = "Fleet deployed — waiting for opponent...";
         DrawText(msg, (VIRTUAL_WIDTH - MeasureText(msg, 22)) / 2, VIRTUAL_HEIGHT / 2 - 11, 22, YELLOW);
@@ -518,7 +580,7 @@ void GraphicalView::renderPlacement(const ClientState& state) {
                 if (cx < Board::SIZE && cy < Board::SIZE)
                     DrawRectangle(gx + cx * CELL_SIZE, gy + cy * CELL_SIZE, CELL_SIZE, CELL_SIZE, ghost);
             }
-            if (!m_showSettingsModal && IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && valid) {
+            if (!m_showSettingsModal && !m_showExitConfirm && IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && valid) {
                 auto ship = std::make_shared<Ship>(*currentType, m_placementOrientation);
                 m_localBoard.placeShip(ship, {hx, hy});
                 m_pendingPlacements.push_back({(int)*currentType, hx, hy,
@@ -528,7 +590,7 @@ void GraphicalView::renderPlacement(const ClientState& state) {
     }
 
     Rectangle btnAuto{(float)(gx + gw + 30), (float)(gy + 50), 160.f, 40.f};
-    bool hovAuto = !m_showSettingsModal && CheckCollisionPointRec(mouse, btnAuto);
+    bool hovAuto = !m_showSettingsModal && !m_showExitConfirm && CheckCollisionPointRec(mouse, btnAuto);
     drawButton(btnAuto, "Auto-Deploy", hovAuto);
     if (hovAuto && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
         playClick();
@@ -537,7 +599,7 @@ void GraphicalView::renderPlacement(const ClientState& state) {
 
     if (m_pendingPlacements.size() == SHIP_ORDER.size()) {
         Rectangle btnConf{(float)(gx + gw + 30), (float)(gy + 110), 160.f, 40.f};
-        bool hovConf = !m_showSettingsModal && CheckCollisionPointRec(mouse, btnConf);
+        bool hovConf = !m_showSettingsModal && !m_showExitConfirm && CheckCollisionPointRec(mouse, btnConf);
         drawButton(btnConf, "Confirm", hovConf);
         if (hovConf && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
             playClick();
@@ -604,15 +666,15 @@ void GraphicalView::renderGame(const ClientState& state) {
     drawGrid(hgx, gy, state.yourBoard, false, false);
     drawGrid(egx, gy, state.enemyBoard, true, true);
 
-    if (!m_showSettingsModal && state.serverState == Protocol::UserState::YourTurn)
+    if (!m_showSettingsModal && !m_showExitConfirm && state.serverState == Protocol::UserState::YourTurn)
         handleBoardClicks(egx, gy);
 
     Rectangle btnLeave{20.f, 20.f, 100.f, 35.f};
-    bool hovLeave = !m_showSettingsModal && CheckCollisionPointRec(getVirtualMousePosition(), btnLeave);
+    bool hovLeave = !m_showSettingsModal && !m_showExitConfirm && CheckCollisionPointRec(getVirtualMousePosition(), btnLeave);
     drawButton(btnLeave, "< Menu", hovLeave);
     if (hovLeave && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
         playClick();
-        if (m_owner) m_owner->resetToMenu();
+        m_showExitConfirm = true;
     }
 }
 
