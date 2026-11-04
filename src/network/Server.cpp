@@ -171,9 +171,11 @@ void GameServer::runSession(ClientPtr p0,  ClientPtr p1) {
                 done = true;
                 int other = 1 - idx;
                 // tell the survivor their opponent left
-                sendLine(*clients[other], Protocol::to_json(Protocol::GameOver{
-                    .result = Protocol::UserState::Victory,  // or add an Abandoned state
-                    .message = "Your opponent disconnected. You win by default."}));
+                if(!session.isOver()){
+                    sendLine(*clients[other], Protocol::to_json(Protocol::GameOver{
+                        .result = Protocol::UserState::Victory,  // or add an Abandoned state
+                        .message = "Your opponent disconnected. You win by default."}));
+                }
                 // then wake the survivor's blocked read
                 clients[other]->socket.shutdown(SHUT_RDWR);
                 break;
