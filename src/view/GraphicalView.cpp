@@ -2,6 +2,8 @@
 #include "app/AppController.hpp"
 #include "app/AudioManager.hpp"
 #include "app/ClientState.hpp"
+#include "model/AdmiralNames.hpp"
+#include "model/PlayerName.hpp"
 #include <algorithm>
 #include <cmath>
 #include <optional>
@@ -18,6 +20,12 @@ const std::vector<ShipType> GraphicalView::SHIP_ORDER = {
 GraphicalView::GraphicalView() = default;
 
 void GraphicalView::init() {
+    // a name the player chose in a previous run is kept as their default
+    if (auto saved = PlayerName::loadSaved()) {
+        m_nameInput = *saved;
+        m_nameEdited = true;
+    }
+
     SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_VSYNC_HINT);
     SetTraceLogLevel(LOG_WARNING);
     InitWindow(m_windowedWidth, m_windowedHeight, "Battleship - Naval Combat");
@@ -129,6 +137,13 @@ void GraphicalView::drawSettingsTriggerButton(float x, float y) {
         playClick();
         m_showSettingsModal = true;
     }
+}
+
+void GraphicalView::drawRoster(const ClientState& state, int y) {
+    if (state.yourName.empty() || state.opponentName.empty())
+        return;
+    const std::string line = state.yourName + "  vs  " + state.opponentName;
+    DrawText(line.c_str(), (VIRTUAL_WIDTH - MeasureText(line.c_str(), 20)) / 2, y, 20, LIGHTGRAY);
 }
 
 void GraphicalView::renderSettingsModal(const ClientState& state) {
@@ -366,6 +381,7 @@ void GraphicalView::renderMainMenu(const ClientState& state) {
         playClick();
         m_isCreating = true;
         m_codeInput.clear();
+        if (!m_nameEdited) m_nameInput = AdmiralNames::randomCreatorName();
         if (m_owner) m_owner->openLobbySetup();
     }
 
@@ -376,6 +392,7 @@ void GraphicalView::renderMainMenu(const ClientState& state) {
         playClick();
         m_isCreating = false;
         m_codeInput.clear();
+        if (!m_nameEdited) m_nameInput = AdmiralNames::randomJoinerName();
         if (m_owner) m_owner->openLobbySetup();
     }
 
@@ -399,8 +416,29 @@ void GraphicalView::renderLobbySetup(const ClientState& state) {
     Vector2 mouse = getVirtualMousePosition();
     float fw = 340.f, fh = 40.f, fx = (VIRTUAL_WIDTH - fw) / 2.f;
 
-    DrawText("Server IP:", (int)fx, 195, 20, RAYWHITE);
-    Rectangle ipBox{fx, 220.f, fw, fh};
+    // name field: turns red, with a short warning underneath, when the name was rejected
+    const bool nameBad = !state.nameError.empty();
+    DrawText("Your name:", (int)fx, 155, 20, RAYWHITE);
+    Rectangle nameBox{fx, 180.f, fw, fh};
+    bool nameSel = (m_activeInputField == 2);
+    DrawRectangleRec(nameBox, Color{10, 20, 35, 255});
+    DrawRectangleLinesEx(nameBox, 2, nameBad ? RED : (nameSel ? SKYBLUE : LIGHTGRAY));
+    DrawText(m_nameInput.c_str(), (int)(nameBox.x + 8), (int)(nameBox.y + 10), 20, nameBad ? RED : RAYWHITE);
+    if (nameBad)
+        DrawText(state.nameError.c_str(), (int)fx, (int)(nameBox.y + fh + 5), 16, RED);
+    if (!m_showSettingsModal && CheckCollisionPointRec(mouse, nameBox) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
+        m_activeInputField = 2;
+    if (nameSel && !m_showSettingsModal) {
+        const std::string before = m_nameInput;
+        handleTextInput(m_nameInput, PlayerName::MAX_LEN);
+        if (m_nameInput != before) {
+            m_nameEdited = true;
+            if (m_owner) m_owner->clearNameError();
+        }
+    }
+
+    DrawText("Server IP:", (int)fx, 250, 20, RAYWHITE);
+    Rectangle ipBox{fx, 275.f, fw, fh};
     bool ipSel = (m_activeInputField == 0);
     DrawRectangleRec(ipBox, Color{10, 20, 35, 255});
     DrawRectangleLinesEx(ipBox, 2, ipSel ? SKYBLUE : LIGHTGRAY);
@@ -410,7 +448,7 @@ void GraphicalView::renderLobbySetup(const ClientState& state) {
     if (ipSel && !m_showSettingsModal)
         handleTextInput(m_ipInput, 64);
 
-    float nextY = 290.f;
+    float nextY = 345.f;
 
     if (!m_isCreating) {
         DrawText("Lobby Code:", (int)fx, (int)nextY - 5, 20, RAYWHITE);
@@ -431,11 +469,14 @@ void GraphicalView::renderLobbySetup(const ClientState& state) {
     drawButton(btnConn, m_isCreating ? "Connect & Create" : "Connect & Join", hovConn);
     if (hovConn && IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && !m_ipInput.empty()) {
         playClick();
+        // only a name the player typed themselves is remembered, never a random default
+        if (m_nameEdited && !PlayerName::validate(m_nameInput))
+            PlayerName::save(m_nameInput);
         if (m_owner) {
             if (m_isCreating)
-                m_owner->connectAndCreate(m_ipInput, 9000);
+                m_owner->connectAndCreate(m_ipInput, 9000, m_nameInput);
             else
-                m_owner->connectAndJoin(m_ipInput, 9000, m_codeInput);
+                m_owner->connectAndJoin(m_ipInput, 9000, m_codeInput, m_nameInput);
         }
     }
 
@@ -529,6 +570,8 @@ void GraphicalView::renderPlacement(const ClientState& state) {
         playClick();
         m_showExitConfirm = true;
     }
+
+    drawRoster(state, 110);
 
     if (m_placementSent) {
         const char* msg = "Fleet deployed — waiting for opponent...";
@@ -654,6 +697,7 @@ void GraphicalView::renderGame(const ClientState& state) {
 
     Color statusColor = (state.serverState == Protocol::UserState::YourTurn) ? GREEN : ORANGE;
     DrawText(status.c_str(), (VIRTUAL_WIDTH - MeasureText(status.c_str(), 22)) / 2, 35, 22, statusColor);
+    drawRoster(state, 75);
 
     int gw = Board::SIZE * CELL_SIZE;
     int hgx = VIRTUAL_WIDTH / 2 - gw - 50;

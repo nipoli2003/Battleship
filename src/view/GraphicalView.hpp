@@ -43,6 +43,7 @@ class GraphicalView : public IView {
     // drawing helpers
     void renderSettingsModal(const ClientState& state);
     void renderExitConfirmModal();
+    void drawRoster(const ClientState& state, int y);
     void drawSettingsTriggerButton(float x, float y);
     std::optional<int> drawSlider(Rectangle bounds, const char* label, int currentValue, bool& isDragging);
     void drawGrid(int startX, int startY, const std::vector<int>& cells, bool hideShips, bool isEnemy);
@@ -66,7 +67,9 @@ class GraphicalView : public IView {
     bool m_isCreating{true};
     std::string m_ipInput{"127.0.0.1"};
     std::string m_codeInput;
-    int m_activeInputField{0};
+    std::string m_nameInput;
+    bool m_nameEdited{false}; // false: the name is just a random default and is re-rolled on each setup
+    int m_activeInputField{0}; // 0 = IP, 1 = code, 2 = name
 
     // --- temporary state while placing ---
     Board m_localBoard;

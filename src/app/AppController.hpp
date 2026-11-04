@@ -21,8 +21,10 @@ class AppController {
     // --- Called by GraphicalView (main thread only) ---
     void goToMenu();
     void openLobbySetup();
-    void connectAndCreate(const std::string& ip, int port);
-    void connectAndJoin(const std::string& ip, int port, const std::string& code);
+    // Both validate the name first: on an invalid name nothing is sent and state.nameError is set.
+    void connectAndCreate(const std::string& ip, int port, const std::string& name);
+    void connectAndJoin(const std::string& ip, int port, const std::string& code, const std::string& name);
+    void clearNameError();
     bool sendPlacement(const std::vector<Protocol::ShipPlacement>& ships);
     void sendShot(int x, int y);
     void resetToMenu();
@@ -38,12 +40,14 @@ class AppController {
     void drainNetEvents();
     void handleNetEvent(const Network::NetEvent& ev);
     void onEnterGame();
+    bool acceptName(const std::string& name);
 
     ClientState m_state;
     std::unique_ptr<NetworkClient> m_net;
     GraphicalView m_view;
     PendingAction m_pendingAction{PendingAction::None};
     std::string m_pendingCode;
+    std::string m_pendingName;
 };
 
 #endif

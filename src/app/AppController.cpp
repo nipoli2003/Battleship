@@ -1,5 +1,6 @@
 #include "app/AppController.hpp"
 #include "app/AudioManager.hpp"
+#include "model/PlayerName.hpp"
 #include "network/Client.hpp"
 #include <iostream>
 #include <variant>
@@ -25,8 +26,10 @@ void AppController::run() {
 }
 
 void AppController::drainNetEvents() {
-    if (!m_net) return;
-    while (auto ev = m_net->poll()) {
+    // m_net can be dropped by an event handler (e.g. a rejected name), so re-check it every iteration
+    while (m_net) {
+        auto ev = m_net->poll();
+        if (!ev) break;
         handleNetEvent(*ev);
     }
 }
@@ -39,6 +42,7 @@ void AppController::openLobbySetup() {
     m_state.scene = AppScene::OnlineLobbyWait;
     m_state.lobbySubState = LobbySubState::Setup;
     m_state.lobbyError.clear();
+    m_state.nameError.clear();
 }
 
 void AppController::onEnterGame() {
@@ -67,6 +71,8 @@ void AppController::handleNetEvent(const Network::NetEvent& ev) {
             m_state.statusMessage = msg.statusMessage;
             m_state.yourBoard     = msg.yourBoard;
             m_state.enemyBoard    = msg.enemyBoard;
+            m_state.yourName      = msg.yourName;
+            m_state.opponentName  = msg.opponentName;
             if (firstUpdate)
                 onEnterGame();
         }
@@ -78,6 +84,15 @@ void AppController::handleNetEvent(const Network::NetEvent& ev) {
         else if constexpr (std::is_same_v<T, Protocol::ServerError>) {
             std::cerr << "[app] server error: " << msg.error << "\n";
         }
+        else if constexpr (std::is_same_v<T, Protocol::NameError>) {
+            // back to the setup form with the name field flagged; the server has already
+            // closed this connection, so drop it and let the next attempt open a fresh one
+            m_state.nameError = msg.error;
+            m_state.lobbySubState = LobbySubState::Setup;
+            m_pendingAction = PendingAction::None;
+            m_net->disconnect();
+            m_net.reset();
+        }
         else if constexpr (std::is_same_v<T, Network::Disconnected>) {
             m_state.lobbySubState = LobbySubState::Error;
             m_state.lobbyError = msg.reason;
@@ -86,10 +101,10 @@ void AppController::handleNetEvent(const Network::NetEvent& ev) {
             if (msg.success) {
                 switch (m_pendingAction) {
                 case PendingAction::CreateLobby:
-                    m_net->createLobby();
+                    m_net->createLobby(m_pendingName);
                     break;
                 case PendingAction::JoinLobby:
-                    m_net->joinLobby(m_pendingCode);
+                    m_net->joinLobby(m_pendingCode, m_pendingName);
                     break;
                 case PendingAction::None:
                     break;
@@ -104,24 +119,43 @@ void AppController::handleNetEvent(const Network::NetEvent& ev) {
     }, ev);
 }
 
-void AppController::connectAndCreate(const std::string& ip, int port) {
+bool AppController::acceptName(const std::string& name) {
+    if (auto err = PlayerName::validate(name)) {
+        m_state.nameError = *err;
+        return false;
+    }
+    m_state.nameError.clear();
+    return true;
+}
+
+void AppController::clearNameError() {
+    m_state.nameError.clear();
+}
+
+void AppController::connectAndCreate(const std::string& ip, int port, const std::string& name) {
+    if (!acceptName(name)) return; // invalid name: no connection is attempted
+
     if (!m_net) m_net = std::make_unique<NetworkClient>();
 
     m_state.lobbySubState = LobbySubState::Connecting;
     m_state.lobbyError.clear();
     m_pendingAction = PendingAction::CreateLobby;
     m_pendingCode.clear();
+    m_pendingName = name;
 
     m_net->connectAsync(ip, port);
 }
 
-void AppController::connectAndJoin(const std::string& ip, int port, const std::string& code) {
+void AppController::connectAndJoin(const std::string& ip, int port, const std::string& code, const std::string& name) {
+    if (!acceptName(name)) return; // invalid name: no connection is attempted
+
     if (!m_net) m_net = std::make_unique<NetworkClient>();
 
     m_state.lobbySubState = LobbySubState::Connecting;
     m_state.lobbyError.clear();
     m_pendingAction = PendingAction::JoinLobby;
     m_pendingCode = code;
+    m_pendingName = name;
 
     m_net->connectAsync(ip, port);
 }
@@ -150,6 +184,7 @@ void AppController::resetToMenu() {
     m_state.sfxVolume   = sfx;
     m_pendingAction = PendingAction::None;
     m_pendingCode.clear();
+    m_pendingName.clear();
 }
 
 void AppController::requestExit() {

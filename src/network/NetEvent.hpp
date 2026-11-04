@@ -23,6 +23,7 @@ using NetEvent = std::variant<
     Protocol::StateUpdate,
     Protocol::GameOver,
     Protocol::ServerError,
+    Protocol::NameError,
     Disconnected,
     ConnectionResult
 >;

@@ -31,8 +31,8 @@ class NetworkClient {
     void disconnect() noexcept;
 
     // Lobby
-    void createLobby();
-    void joinLobby(const std::string& code);
+    void createLobby(const std::string& name);
+    void joinLobby(const std::string& code, const std::string& name);
 
     // Gameplay
     void sendPlaceShips(const std::vector<Protocol::ShipPlacement>& payload);

@@ -106,12 +106,12 @@ void NetworkClient::sendMsg(const std::string& line) {
     m_sock.write_n(line.c_str(), line.size());
 }
 
-void NetworkClient::createLobby() {
-    sendMsg(Protocol::to_json(Protocol::CreateLobby{}));
+void NetworkClient::createLobby(const std::string& name) {
+    sendMsg(Protocol::to_json(Protocol::CreateLobby{.name = name}));
 }
 
-void NetworkClient::joinLobby(const std::string& code) {
-    sendMsg(Protocol::to_json(Protocol::JoinLobby{.code = code}));
+void NetworkClient::joinLobby(const std::string& code, const std::string& name) {
+    sendMsg(Protocol::to_json(Protocol::JoinLobby{.code = code, .name = name}));
 }
 
 void NetworkClient::sendPlaceShips(const std::vector<Protocol::ShipPlacement>& payload) {
@@ -173,6 +173,7 @@ void NetworkClient::dispatch(const std::string& line) {
     case MT::STATE_UPDATE: pushEvent(Protocol::from_json<Protocol::StateUpdate>(line)); break;
     case MT::GAME_OVER:    pushEvent(Protocol::from_json<Protocol::GameOver>(line)); break;
     case MT::SERVER_ERROR: pushEvent(Protocol::from_json<Protocol::ServerError>(line)); break;
+    case MT::NAME_ERROR:   pushEvent(Protocol::from_json<Protocol::NameError>(line)); break;
     default:
         std::cerr << "[client] unknown message type: " << static_cast<int>(type) << "\n";
         break;

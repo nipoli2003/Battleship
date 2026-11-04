@@ -18,6 +18,7 @@ class GameServer {
   private:
     struct Client {
         sockpp::tcp_socket socket;
+        std::string name; // validated display name, set once before the client is shared
         // NOTE: right now the mutex is not actually needed, since message processing, reading cannot be at the same time
         // NOTE: since all writes go through handleLine(), but might be useful so future writes don't corrupt frames
         std::mutex write_mutex;
@@ -42,8 +43,8 @@ class GameServer {
 
     // client handshake
     void handle_client(sockpp::tcp_socket sock);
-    void handle_new(ClientPtr client);
-    void handle_join(ClientPtr client, const std::string &code);
+    void handle_new(ClientPtr client, const std::string &name);
+    void handle_join(ClientPtr client, const std::string &code, const std::string &name);
 
     // matched pair session
     void runSession(ClientPtr p0, ClientPtr p1);

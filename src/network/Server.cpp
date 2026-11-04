@@ -3,6 +3,7 @@
 #include <random>
 #include <thread>
 #include "helpers/Log.hpp"
+#include "model/PlayerName.hpp"
 
 void GameServer::run(int port) {
     sockpp::tcp_acceptor acc;
@@ -103,16 +104,24 @@ void GameServer::handle_client(sockpp::tcp_socket sock) {
     }
 
     if (type == Protocol::CREATE_LOBBY) {
-        handle_new(std::move(client));
+        auto msg = Protocol::from_json<Protocol::CreateLobby>(line);
+        handle_new(std::move(client), msg.name);
     } else if (type == Protocol::JOIN_LOBBY) {
         auto msg = Protocol::from_json<Protocol::JoinLobby>(line);
-        handle_join(std::move(client), msg.code);
+        handle_join(std::move(client), msg.code, msg.name);
     } else {
         std::cerr << "[server] unknown message type: " << static_cast<int>(type) << std::endl;
     }
 }
 
-void GameServer::handle_new(ClientPtr client) {
+void GameServer::handle_new(ClientPtr client, const std::string &name) {
+    if (auto err = PlayerName::validate(name)) {
+        LOG_SRV_WARN("[!] Create failed: invalid name \"", name, "\": ", *err);
+        sendLine(*client, Protocol::to_json(Protocol::NameError{.error = *err}));
+        return;
+    }
+    client->name = name;
+
     std::string code;
     {
         std::lock_guard<std::mutex> lock(m_lobby_mutex);
@@ -122,18 +131,37 @@ void GameServer::handle_new(ClientPtr client) {
         m_registry[code] = {client, std::chrono::steady_clock::now()};
     }
     sendLine(*client, Protocol::to_json(Protocol::LobbyCode{.code = code}));
-    LOG_SRV_INFO("[+] Lobby created: ", code);
+    LOG_SRV_INFO("[+] Lobby created: ", code, " by ", name);
 }
 
-void GameServer::handle_join(ClientPtr client, const std::string &code) {
+void GameServer::handle_join(ClientPtr client, const std::string &code, const std::string &name) {
+    if (auto err = PlayerName::validate(name)) {
+        LOG_SRV_WARN("[!] Join failed: invalid name \"", name, "\": ", *err);
+        sendLine(*client, Protocol::to_json(Protocol::NameError{.error = *err}));
+        return;
+    }
+    client->name = name;
+
     ClientPtr p0 = nullptr;
+    bool duplicateName = false;
     {
         std::lock_guard<std::mutex> lock(m_lobby_mutex);
         auto it = m_registry.find(code);
         if (it != m_registry.end()) {
-            p0 = it->second.socket;
-            m_registry.erase(it);
+            // check before erasing: a rejected name must not destroy the creator's open lobby
+            if (PlayerName::sameName(it->second.socket->name, name)) {
+                duplicateName = true;
+            } else {
+                p0 = it->second.socket;
+                m_registry.erase(it);
+            }
         }
+    }
+
+    if (duplicateName) {
+        LOG_SRV_WARN("[!] Join failed: name \"", name, "\" already used in lobby ", code);
+        sendLine(*client, Protocol::to_json(Protocol::NameError{.error = "The name must be different from the other player's"}));
+        return;
     }
 
     if (!p0) {
@@ -142,7 +170,7 @@ void GameServer::handle_join(ClientPtr client, const std::string &code) {
         return;
     }
 
-    LOG_SRV_INFO("[+] Lobby joined: ", code);
+    LOG_SRV_INFO("[+] Lobby joined: ", code, " by ", name);
     std::thread(&GameServer::runSession, this, p0, std::move(client)).detach();
 }
 
@@ -154,6 +182,7 @@ void GameServer::runSession(ClientPtr p0,  ClientPtr p1) {
 
     GameSession session;
     ClientPtr clients[2] = {p0, p1};
+    session.setNames(p0->name, p1->name);
 
     sendLine(*clients[0], Protocol::to_json(Protocol::LobbyJoined{}));
     sendLine(*clients[1], Protocol::to_json(Protocol::LobbyJoined{}));

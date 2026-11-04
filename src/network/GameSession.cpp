@@ -41,6 +41,11 @@ std::string buildStatusMessage(const GameSnapshot &snap, int playerIdx) {
 
 } // namespace
 
+void GameSession::setNames(std::string name0, std::string name1) {
+    m_names[0] = std::move(name0);
+    m_names[1] = std::move(name1);
+}
+
 bool GameSession::placeShips(int playerIdx, const std::vector<Protocol::ShipPlacement> &ships) {
     // translate Protocol::ShipPlacement into what the engine expects
     std::vector<std::pair<ShipType, std::pair<Coordinate, Orientation>>> parsed;
@@ -74,6 +79,8 @@ Protocol::StateUpdate GameSession::buildSnapshot(int playerIdx) const {
     Protocol::StateUpdate out;
     out.turnNumber = snap.turnNumber;
     out.statusMessage = buildStatusMessage(snap, playerIdx);
+    out.yourName = m_names[playerIdx];
+    out.opponentName = m_names[1 - playerIdx];
 
     // flip Victory/Defeat so each player sees their own outcome
     switch (snap.state) {
