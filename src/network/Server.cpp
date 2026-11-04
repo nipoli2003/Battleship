@@ -1,6 +1,5 @@
 #include "network/Server.hpp"
 #include <iostream>
-#include <mutex>
 #include <random>
 #include <thread>
 #include "helpers/Log.hpp"
