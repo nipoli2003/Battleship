@@ -8,13 +8,6 @@
 #include <random>
 #include <string>
 
-const std::vector<ShipType> GraphicalView::SHIP_ORDER = {
-    ShipType::Carrier,
-    ShipType::Battleship,
-    ShipType::Cruiser,
-    ShipType::Submarine,
-    ShipType::Destroyer};
-
 GraphicalView::GraphicalView() = default;
 
 void GraphicalView::init() {
@@ -379,7 +372,16 @@ void GraphicalView::renderMainMenu(const ClientState& state) {
         if (m_owner) m_owner->openLobbySetup();
     }
 
-    Rectangle btnExit{(VIRTUAL_WIDTH - bw) / 2.0f, by + 130.0f, bw, bh};
+    Rectangle btnBot{bx, by + 130.f, bw, bh};
+    bool hovBot = !m_showSettingsModal && CheckCollisionPointRec(mouse, btnBot);
+    drawButton(btnBot, "Play vs Bot", hovBot);
+    if (hovBot && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+        playClick();
+        if (m_owner)
+            m_owner->startLocalBotMatch();
+    }
+
+    Rectangle btnExit{(VIRTUAL_WIDTH - bw) / 2.0f, by + 195.0f, bw, bh};
     bool hovExit = !m_showSettingsModal && CheckCollisionPointRec(mouse, btnExit);
     drawButton(btnExit, "Exit Game", hovExit);
     if (hovExit && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
@@ -482,27 +484,14 @@ void GraphicalView::renderLobbyWait(const ClientState& state) {
 }
 
 void GraphicalView::randomizeLocalFleet() {
-    m_localBoard.reset();
-    m_pendingPlacements.clear();
-
     std::mt19937 rng{std::random_device{}()};
-    std::uniform_int_distribution<int> orientDist(0, 1);
-
-    for (auto type : SHIP_ORDER) {
-        bool placed = false;
-        for (int attempts = 0; !placed && attempts < 1000; ++attempts) {
-            auto orient = orientDist(rng) == 0 ? Orientation::Horizontal : Orientation::Vertical;
-            auto ship = std::make_shared<Ship>(type, orient);
-            const int len = ship->length();
-            int maxX = (orient == Orientation::Horizontal) ? Board::SIZE - len : Board::SIZE - 1;
-            int maxY = (orient == Orientation::Vertical)   ? Board::SIZE - len : Board::SIZE - 1;
-            int x = std::uniform_int_distribution<int>(0, maxX)(rng);
-            int y = std::uniform_int_distribution<int>(0, maxY)(rng);
-            if (m_localBoard.placeShip(ship, {x, y})) {
-                m_pendingPlacements.push_back({(int)type, x, y, orient == Orientation::Horizontal ? 0 : 1});
-                placed = true;
-            }
-        }
+    m_localBoard.reset();
+    auto placement = m_localBoard.generateRandomFleet(rng);   // resets internally
+    m_pendingPlacements.clear();
+    for (auto& [type, coordOrient] : placement) {
+        auto& [coord, orient] = coordOrient;
+        m_pendingPlacements.push_back({(int)type, coord.x, coord.y,
+                                       orient == Orientation::Horizontal ? 0 : 1});
     }
 }
 
@@ -544,8 +533,8 @@ void GraphicalView::renderPlacement(const ClientState& state) {
     DrawText("FLEET DEPLOYMENT", (VIRTUAL_WIDTH - MeasureText("FLEET DEPLOYMENT", 30)) / 2, 35, 30, SKYBLUE);
 
     std::optional<ShipType> currentType;
-    if (m_pendingPlacements.size() < SHIP_ORDER.size())
-        currentType = SHIP_ORDER[m_pendingPlacements.size()];
+    if (m_pendingPlacements.size() < standardFleet.size())
+        currentType = standardFleet[m_pendingPlacements.size()];
 
     if (currentType) {
         Ship tmp(*currentType, m_placementOrientation);
@@ -597,7 +586,7 @@ void GraphicalView::renderPlacement(const ClientState& state) {
         randomizeLocalFleet();
     }
 
-    if (m_pendingPlacements.size() == SHIP_ORDER.size()) {
+    if (m_pendingPlacements.size() == standardFleet.size()) {
         Rectangle btnConf{(float)(gx + gw + 30), (float)(gy + 110), 160.f, 40.f};
         bool hovConf = !m_showSettingsModal && !m_showExitConfirm && CheckCollisionPointRec(mouse, btnConf);
         drawButton(btnConf, "Confirm", hovConf);

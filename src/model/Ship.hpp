@@ -1,7 +1,7 @@
 #pragma once
 
-#include <string>
 #include <string_view>
+#include <vector>
 
 enum class ShipType {
     Carrier,
@@ -9,6 +9,14 @@ enum class ShipType {
     Cruiser,
     Submarine,
     Destroyer
+};
+
+inline static const std::vector<ShipType> standardFleet{
+    ShipType::Carrier,
+    ShipType::Battleship,
+    ShipType::Cruiser,
+    ShipType::Submarine,
+    ShipType::Destroyer
 };
 
 enum class Orientation {

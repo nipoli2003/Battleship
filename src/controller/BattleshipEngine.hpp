@@ -2,7 +2,7 @@
 
 #include "controller/GameState.hpp"
 #include "model/Board.hpp"
-#include <vector>
+#include "model/Protocol.hpp"
 
 class BattleshipEngine {
   public:
@@ -11,7 +11,7 @@ class BattleshipEngine {
     void startNewGame();
 
     // Placement phase methods
-    bool placeShips(int playerIdx, const std::vector<std::pair<ShipType, std::pair<Coordinate, Orientation>>> &ships);
+    bool placeShips(int playerIdx, const FleetPlacement &ships);
     bool isPlacementDone(int playerIdx) const noexcept { return m_placement_done[playerIdx]; }
     bool bothReady() const noexcept { return m_placement_done[0] && m_placement_done[1]; }
     void finishPlacement();
@@ -22,6 +22,11 @@ class BattleshipEngine {
     [[nodiscard]] const Board &getBoard(int playerIdx) const noexcept { return m_boards[playerIdx]; }
     [[nodiscard]] Board &accessBoard(int playerIdx) noexcept { return m_boards[playerIdx]; }
     [[nodiscard]] const GameSnapshot &getSnapshot() const noexcept { return m_snapshot; }
+
+    // builds a tailored StateUpdate for playerIdx:
+    // - yourBoard shows ships; enemyBoard masks present ships as Empty.
+    // - Victory/Defeat are flipped correctly per perspective.
+    Protocol::StateUpdate buildPlayerSnapshot(int playerIdx) const;
 
   private:
     Board m_boards[2];

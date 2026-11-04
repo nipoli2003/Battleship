@@ -12,8 +12,8 @@ public:
     void recordShotResult(Coordinate coord, AttackResult result);
     void reset();
 
-    // Helper to randomly populate ships during match setup
-    static void placeShipsRandomly(Board& board);
+    // populate ships during match setup
+    const FleetPlacement generateLegalPlacement();
 
 private:
     std::vector<Coordinate> m_remainingTargets;

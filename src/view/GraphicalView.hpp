@@ -77,8 +77,6 @@ class GraphicalView : public IView {
     // --- reset placement state when entering InGame ---
     AppScene m_prevScene{AppScene::TitleScreen};
 
-    static const std::vector<ShipType> SHIP_ORDER;
-
     static constexpr int VIRTUAL_WIDTH = 1200;
     static constexpr int VIRTUAL_HEIGHT = 700;
     static constexpr int CELL_SIZE = 35;

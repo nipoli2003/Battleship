@@ -21,10 +21,9 @@ class GameSession {
         return s == MatchState::Victory || s == MatchState::Defeat;
     }
 
-    // builds a tailored StateUpdate for playerIdx:
-    // - yourBoard shows ships; enemyBoard masks present ships as Empty.
-    // - Victory/Defeat are flipped correctly per perspective.
-    Protocol::StateUpdate buildSnapshot(int playerIdx) const;
+    inline Protocol::StateUpdate buildSnapshot(int playerIdx) const {
+        return m_engine.buildPlayerSnapshot(playerIdx);
+    };
 
   private:
     BattleshipEngine m_engine;

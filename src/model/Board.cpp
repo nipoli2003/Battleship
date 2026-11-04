@@ -1,4 +1,5 @@
 #include "model/Board.hpp"
+#include "helpers/Log.hpp"
 
 Board::Board() {
     reset();
@@ -115,4 +116,42 @@ bool Board::allShipsSunk() const noexcept {
         if (!ship->isSunk()) return false;
     }
     return true;
+}
+
+FleetPlacement Board::generateRandomFleet() {
+    std::mt19937 rng{std::random_device{}()};
+    return generateRandomFleet(rng);
+}
+
+FleetPlacement Board::generateRandomFleet(std::mt19937 &rng) {
+    std::uniform_int_distribution<int> orientDist(0, 1);
+
+    reset();
+
+    FleetPlacement placement;
+    placement.reserve(standardFleet.size());
+
+    for (auto type : standardFleet) {
+        bool placed = false;
+        for (int attempt = 0; !placed && attempt < 1000; ++attempt) {
+            auto orientation = (orientDist(rng) == 0) ? Orientation::Horizontal : Orientation::Vertical;
+
+            // Generate coordinates constrained to board limits based on orientation
+            Ship testShip(type, orientation);
+            int maxX = (orientation == Orientation::Horizontal) ? (Board::SIZE - testShip.length()) : (Board::SIZE - 1);
+            int maxY = (orientation == Orientation::Vertical) ? (Board::SIZE - testShip.length()) : (Board::SIZE - 1);
+
+            std::uniform_int_distribution<int> xDist(0, maxX);
+            std::uniform_int_distribution<int> yDist(0, maxY);
+            Coordinate coord{xDist(rng), yDist(rng)};
+
+            if (placeShip(std::make_shared<Ship>(type, orientation), coord)) {
+                placement.push_back({type, {coord, orientation}});
+                placed = true;
+            }
+        }
+        if (!placed)
+            LOG_SRV_WARN("failed to place ships");
+    }
+    return placement;
 }
