@@ -3,7 +3,6 @@
 #include "app/AudioManager.hpp"
 #include "app/ClientState.hpp"
 #include <algorithm>
-#include <cctype>
 #include <cmath>
 #include <optional>
 #include <random>
@@ -368,11 +367,8 @@ void GraphicalView::renderLobbySetup(const ClientState& state) {
         DrawText(m_codeInput.c_str(), (int)(codeBox.x + 8), (int)(codeBox.y + 10), 20, RAYWHITE);
         if (!m_showSettingsModal && CheckCollisionPointRec(mouse, codeBox) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
             m_activeInputField = 1;
-        if (codeSel && !m_showSettingsModal){
+        if (codeSel && !m_showSettingsModal)
             handleTextInput(m_codeInput, 6);
-            std::transform(m_codeInput.begin(), m_codeInput.end(), m_codeInput.begin(),
-               [](unsigned char c) { return std::toupper(c); });
-        }
         nextY += 80.f;
     }
 
