@@ -9,6 +9,9 @@ class GameSession {
   public:
     GameSession() = default;
 
+    // display names of player 0 and 1, shown to each other in buildSnapshot
+    void setNames(std::string name0, std::string name1);
+
     // Returns false if placement was already submitted or ships are invalid.
     bool placeShips(int playerIdx, const std::vector<Protocol::ShipPlacement> &ships);
     bool bothReady() const noexcept { return m_engine.bothReady(); }
@@ -28,6 +31,7 @@ class GameSession {
 
   private:
     BattleshipEngine m_engine;
+    std::string m_names[2];
 };
 
 #endif

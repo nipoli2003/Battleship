@@ -18,6 +18,11 @@ struct ClientState {
     LobbySubState lobbySubState = LobbySubState::Setup;
     std::string lobbyCode;
     std::string lobbyError;
+    std::string nameError; // set when the chosen name is rejected (locally or by the server)
+
+    // --- Players (from the server's StateUpdate) ---
+    std::string yourName;
+    std::string opponentName;
 
     // --- Game (server-authoritative) ---
     // yourBoard / enemyBoard are raw CellState values from StateUpdate.

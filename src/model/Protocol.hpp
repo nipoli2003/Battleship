@@ -20,7 +20,8 @@ enum MsgType : int {
     // START_GAME,
     STATE_UPDATE,
     GAME_OVER,
-    SERVER_ERROR
+    SERVER_ERROR,
+    NAME_ERROR
 };
 
 // enum wrapper for Glaze (glaze needs a struct for serialization)
@@ -41,11 +42,13 @@ inline MsgType peek_type(const std::string &json) {
 // messages
 struct CreateLobby {
     MsgType type{CREATE_LOBBY};
+    std::string name;
 };
 
 struct JoinLobby {
     MsgType type{JOIN_LOBBY};
     std::string code;
+    std::string name;
 };
 
 struct ShipPlacement {
@@ -96,6 +99,8 @@ struct StateUpdate {
     std::string statusMessage;
     std::vector<int> yourBoard;
     std::vector<int> enemyBoard;
+    std::string yourName;
+    std::string opponentName;
 };
 
 struct GameOver {
@@ -106,6 +111,12 @@ struct GameOver {
 
 struct ServerError {
     MsgType type{SERVER_ERROR};
+    std::string error;
+};
+
+// the chosen display name was rejected (invalid, or same as the other player's)
+struct NameError {
+    MsgType type{NAME_ERROR};
     std::string error;
 };
 
