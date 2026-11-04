@@ -22,6 +22,7 @@ class GameSession {
      * @brief Creates an empty game session.
      */
     GameSession() = default;
+    void setNames(std::string name0, std::string name1);
 
     /**
      * @brief Submits a player’s fleet placement for the current match.
@@ -60,15 +61,14 @@ class GameSession {
      * @return Snapshot containing only that player's view of the match.
      *         enemyBoard masks present ships as Empty
      */
-    inline Protocol::StateUpdate buildSnapshot(int playerIdx) const {
-        return m_engine.buildPlayerSnapshot(playerIdx);
-    }
+    Protocol::StateUpdate buildSnapshot(int playerIdx) const;
 
     int useAbility(int playerIdx, Protocol::AbilityType ability, Coordinate target, Orientation orientation = Orientation::Horizontal);
     [[nodiscard]] bool hasAbility(int playerIdx, Protocol::AbilityType ability) const noexcept;
 
   private:
     BattleshipEngine m_engine; ///< Core match engine backing this session.
+    std::string m_names[2];
 };
 
 #endif

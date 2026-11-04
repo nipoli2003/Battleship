@@ -1,6 +1,7 @@
 #include "app/AppController.hpp"
 #include "app/AudioManager.hpp"
 #include "network/Client.hpp"
+#include "model/PlayerName.hpp"
 #include <iostream>
 #include <variant>
 #include <chrono>
@@ -58,6 +59,7 @@ void AppController::openLobbySetup() {
     m_state.scene = AppScene::OnlineLobbyWait;
     m_state.lobbySubState = LobbySubState::Setup;
     m_state.lobbyError.clear();
+    m_state.nameError.clear();
 }
 
 void AppController::onEnterGame() {
@@ -110,6 +112,8 @@ void AppController::handleNetEvent(const Network::NetEvent& ev) {
             m_state.statusMessage  = msg.statusMessage;
             m_state.yourBoard      = msg.yourBoard;
             m_state.enemyBoard     = msg.enemyBoard;
+            m_state.yourName = msg.yourName;
+            m_state.opponentName = msg.opponentName;
             m_state.abilityCharges = msg.ability_charges;
             m_state.abilityLogs    = msg.abilityLogs;
 
@@ -134,6 +138,12 @@ void AppController::handleNetEvent(const Network::NetEvent& ev) {
         else if constexpr (std::is_same_v<T, Protocol::ServerError>) {
             std::cerr << "[app] server error: " << msg.error << "\n";
         }
+        else if constexpr (std::is_same_v<T, Protocol::NameError>) {
+            m_state.nameError = msg.error;
+            m_state.lobbySubState = LobbySubState::Setup;
+            m_pendingAction = PendingAction::None;
+            if (m_net) { m_net->disconnect(); m_net.reset(); }
+        }
         else if constexpr (std::is_same_v<T, Network::Disconnected>) {
             m_state.lobbySubState = LobbySubState::Error;
             m_state.lobbyError = msg.reason;
@@ -142,10 +152,10 @@ void AppController::handleNetEvent(const Network::NetEvent& ev) {
             if (msg.success) {
                 switch (m_pendingAction) {
                 case PendingAction::CreateLobby:
-                    m_net->createLobby();
+                    m_net->createLobby(m_pendingName);
                     break;
                 case PendingAction::JoinLobby:
-                    m_net->joinLobby(m_pendingCode);
+                    m_net->joinLobby(m_pendingCode, m_pendingName);
                     break;
                 case PendingAction::None:
                     break;
@@ -160,24 +170,35 @@ void AppController::handleNetEvent(const Network::NetEvent& ev) {
     }, ev);
 }
 
-void AppController::connectAndCreate(const std::string& ip, int port) {
+bool AppController::acceptName(const std::string& name) {
+    if (auto err = PlayerName::validate(name)) { m_state.nameError = *err; return false; }
+    m_state.nameError.clear(); return true;
+}
+
+void AppController::clearNameError() { m_state.nameError.clear(); }
+
+void AppController::connectAndCreate(const std::string& ip, int port, const std::string& name) {
+    if (!acceptName(name)) return;
     if (!m_net) m_net = std::make_unique<NetworkClient>();
 
     m_state.lobbySubState = LobbySubState::Connecting;
     m_state.lobbyError.clear();
     m_pendingAction = PendingAction::CreateLobby;
     m_pendingCode.clear();
+    m_pendingName = name;
 
     m_net->connectAsync(ip, port);
 }
 
-void AppController::connectAndJoin(const std::string& ip, int port, const std::string& code) {
+void AppController::connectAndJoin(const std::string& ip, int port, const std::string& code, const std::string& name) {
+    if (!acceptName(name)) return;
     if (!m_net) m_net = std::make_unique<NetworkClient>();
 
     m_state.lobbySubState = LobbySubState::Connecting;
     m_state.lobbyError.clear();
     m_pendingAction = PendingAction::JoinLobby;
     m_pendingCode = code;
+    m_pendingName = name;
 
     m_net->connectAsync(ip, port);
 }

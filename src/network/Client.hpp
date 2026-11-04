@@ -66,13 +66,13 @@ class NetworkClient {
     /**
      * @brief Requests creation of a new lobby on the server.
      */
-    void createLobby();
+    void createLobby(const std::string& name = "Player 1");
 
     /**
      * @brief Joins an existing lobby using its access code.
      * @param code Lobby code to join.
      */
-    void joinLobby(const std::string& code);
+    void joinLobby(const std::string& code, const std::string& name = "Player 2");
 
     // Gameplay
     /**

@@ -51,6 +51,7 @@ class GameServer {
      */
     struct Client {
         sockpp::tcp_socket socket; ///< Active client socket.
+        std::string name;
         std::mutex write_mutex;    ///< Serializes outbound writes to this socket.
     };
 
@@ -102,14 +103,14 @@ class GameServer {
      * @brief Handles creation of a new lobby for a first client.
      * @param client Client who requested a lobby.
      */
-    void handle_new(ClientPtr client);
+    void handle_new(ClientPtr client, const std::string &name);
 
     /**
      * @brief Attempts to join an existing lobby using a code.
      * @param client Client requesting the join.
      * @param code Lobby identifier to join.
      */
-    void handle_join(ClientPtr client, const std::string &code);
+    void handle_join(ClientPtr client, const std::string &code, const std::string &name);
 
     /**
      * @brief Runs a full match between two clients.

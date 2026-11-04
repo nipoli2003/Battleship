@@ -52,7 +52,7 @@ class AppController {
      * @param ip Server address.
      * @param port Server port.
      */
-    void connectAndCreate(const std::string& ip, int port);
+    void connectAndCreate(const std::string& ip, int port, const std::string& name);
 
     /**
      * @brief Connects to a server and joins an existing lobby.
@@ -60,7 +60,8 @@ class AppController {
      * @param port Server port.
      * @param code Lobby code to join.
      */
-    void connectAndJoin(const std::string& ip, int port, const std::string& code);
+    void connectAndJoin(const std::string& ip, int port, const std::string& code, const std::string& name);
+    void clearNameError();
 
     /**
      * @brief Sends a fleet placement payload to the server.
@@ -137,6 +138,7 @@ class AppController {
      * @brief Initializes the in-game state when entering a match.
      */
     void onEnterGame();
+    bool acceptName(const std::string& name);
 
     /**
      * @brief Applies a locally computed or server-provided snapshot to the current state.
@@ -152,6 +154,7 @@ class AppController {
     GraphicalView m_view; ///< Main graphical UI object.
     PendingAction m_pendingAction{PendingAction::None}; ///< Deferred action after connect.
     std::string m_pendingCode; ///< Lobby code used by a queued join action.
+    std::string m_pendingName;
 };
 
 #endif

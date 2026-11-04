@@ -1,6 +1,16 @@
 #include "network/GameSession.hpp"
 #include "model/Protocol.hpp"
 
+void GameSession::setNames(std::string name0, std::string name1) {
+    m_names[0] = std::move(name0); m_names[1] = std::move(name1);
+}
+
+Protocol::StateUpdate GameSession::buildSnapshot(int playerIdx) const {
+    auto out = m_engine.buildPlayerSnapshot(playerIdx);
+    out.yourName = m_names[playerIdx]; out.opponentName = m_names[1 - playerIdx];
+    return out;
+}
+
 bool GameSession::placeShips(int playerIdx, const std::vector<Protocol::ShipPlacement> &ships) {
     // translate Protocol::ShipPlacement into what the engine expects
     std::vector<std::pair<ShipType, std::pair<Coordinate, Orientation>>> parsed;

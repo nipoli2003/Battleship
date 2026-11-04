@@ -29,6 +29,9 @@ struct ClientState {
     LobbySubState lobbySubState = LobbySubState::Setup; ///< Current lobby UI panel.
     std::string lobbyCode; ///< Lobby code currently in use or generated.
     std::string lobbyError; ///< Last lobby-related error reported by the server.
+    std::string nameError;
+    std::string yourName;
+    std::string opponentName;
 
     // --- Game (server-authoritative) ---
     // yourBoard / enemyBoard are raw CellState values from StateUpdate.

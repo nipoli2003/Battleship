@@ -10,6 +10,8 @@ FetchContent_MakeAvailable(googletest)
 add_executable(unit_tests
     test_app.cpp
     test_board.cpp
+    test_player_name.cpp
+    test_admiral_names.cpp
 )
 
 add_executable(integration_tests
