@@ -13,6 +13,7 @@ enum MsgType : int {
     JOIN_LOBBY,
     PLACE_SHIPS,
     FIRE_SHOT,
+    USE_ABILITY,
     // server -> client
     LOBBY_CODE,
     LOBBY_JOINED,
@@ -21,6 +22,10 @@ enum MsgType : int {
     STATE_UPDATE,
     GAME_OVER,
     SERVER_ERROR
+};
+
+enum class AbilityType : int {
+    Sonar = 0,
 };
 
 // enum wrapper for Glaze (glaze needs a struct for serialization)
@@ -62,6 +67,13 @@ struct PlaceShips {
 
 struct FireShot {
     MsgType type{FIRE_SHOT};
+    int x{};
+    int y{};
+};
+
+struct UseAbility {
+    MsgType type{USE_ABILITY};
+    int abilityType{};  // Protocol::AbilityType as int
     int x{};
     int y{};
 };
