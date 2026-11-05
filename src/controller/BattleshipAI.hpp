@@ -28,4 +28,6 @@ private:
     std::array<std::array<Knowledge, Board::SIZE>, Board::SIZE> m_known{};
     std::array<std::array<int, Board::SIZE>, Board::SIZE> m_score{};
 
+    std::vector<Coordinate> findKnowledgeCells(Knowledge value) const;
+
 };
