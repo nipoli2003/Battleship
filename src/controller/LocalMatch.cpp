@@ -71,7 +71,13 @@ bool LocalMatch::botFireOnce() {
         LOG_SRV_WARN("bot tried to place illegal shot");
         return false; // target already tried; AI shouldn't do this
     }
-    m_bot.recordShotResult(target, m_engine.getSnapshot().lastResult);
+    auto result = m_engine.getSnapshot().lastResult;
+    std::optional<ShipType> sunk;
+    if (result == AttackResult::Sunk) {
+        if (auto ship = m_engine.getBoard(m_humanIdx).getShipAt(target.x, target.y))
+            sunk = (*ship)->type();
+    }
+    m_bot.recordShotResult(target, result, sunk);
     return true;
 }
 
