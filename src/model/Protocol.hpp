@@ -24,10 +24,6 @@ enum MsgType : int {
     SERVER_ERROR
 };
 
-enum class AbilityType : int {
-    Sonar = 0,
-};
-
 // enum wrapper for Glaze (glaze needs a struct for serialization)
 struct Header {
     int type{-1};
@@ -69,6 +65,12 @@ struct FireShot {
     MsgType type{FIRE_SHOT};
     int x{};
     int y{};
+};
+
+enum class AbilityType : int {
+    Sonar = 0,        // Destroyer
+    Torpedo = 1,      // Submarine
+    BombingRun = 2    // Carrier
 };
 
 struct UseAbility {

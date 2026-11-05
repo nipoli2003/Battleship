@@ -1,6 +1,7 @@
 #pragma once
 
 #include "controller/GameState.hpp"
+#include "model/Protocol.hpp"
 #include "model/Board.hpp"
 #include <vector>
 
@@ -16,6 +17,11 @@ class BattleshipEngine {
     bool bothReady() const noexcept { return m_placement_done[0] && m_placement_done[1]; }
     void finishPlacement();
 
+    // Tactical Abilities
+    int useAbility(int playerIdx, Protocol::AbilityType ability, Coordinate target);
+    [[nodiscard]] bool hasUsedAbility(int playerIdx) const noexcept { return m_abilityUsed[playerIdx]; }
+    [[nodiscard]] std::string getSonarLog(int playerIdx) const { return m_sonarLog[playerIdx]; }
+
     // Combat phase methods
     bool fire(int playerIdx, Coordinate target);
 
@@ -24,7 +30,13 @@ class BattleshipEngine {
     [[nodiscard]] const GameSnapshot &getSnapshot() const noexcept { return m_snapshot; }
 
   private:
+    // Returns true if the player has a non-sunk ship of this type
+    bool hasActiveShip(int playerIdx, ShipType type) const;
+
     Board m_boards[2];
     bool m_placement_done[2]{false, false};
     GameSnapshot m_snapshot;
+
+    bool m_abilityUsed[2]{false, false};
+    std::string m_sonarLog[2];
 };
