@@ -26,6 +26,9 @@ class GameSession {
     // - Victory/Defeat are flipped correctly per perspective.
     Protocol::StateUpdate buildSnapshot(int playerIdx) const;
 
+    int useAbility(int playerIdx, Protocol::AbilityType ability, Coordinate target);
+    [[nodiscard]] bool hasUsedAbility(int playerIdx) const noexcept;
+
   private:
     BattleshipEngine m_engine;
 };

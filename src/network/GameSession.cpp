@@ -73,7 +73,10 @@ Protocol::StateUpdate GameSession::buildSnapshot(int playerIdx) const {
 
     Protocol::StateUpdate out;
     out.turnNumber = snap.turnNumber;
-    out.statusMessage = buildStatusMessage(snap, playerIdx);
+    
+    // Prepend the persistent sonar log (empty string if unused)
+    const std::string sonar = m_engine.getSonarLog(playerIdx);
+    out.statusMessage = sonar + buildStatusMessage(snap, playerIdx);
 
     // flip Victory/Defeat so each player sees their own outcome
     switch (snap.state) {
@@ -109,4 +112,12 @@ Protocol::StateUpdate GameSession::buildSnapshot(int playerIdx) const {
     }
 
     return out;
+}
+
+int GameSession::useAbility(int playerIdx, Protocol::AbilityType ability, Coordinate target){
+    return m_engine.useAbility(playerIdx, ability, target);
+}
+
+bool GameSession::hasUsedAbility(int playerIdx) const noexcept{
+    return m_engine.hasUsedAbility(playerIdx);
 }
