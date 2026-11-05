@@ -1,6 +1,8 @@
 #pragma once
 
 #include "model/Board.hpp"
+#include <array>
+#include <optional>
 #include <vector>
 #include <random>
 
@@ -11,8 +13,7 @@ public:
     BattleshipAI();
 
     Coordinate getNextShot();
-    Coordinate huntMode();
-    Coordinate targetMode();
+    
     void recordShotResult(Coordinate coord, AttackResult result, std::optional<ShipType> sunk);
     void reset();
 
@@ -29,5 +30,9 @@ private:
     std::array<std::array<int, Board::SIZE>, Board::SIZE> m_score{};
 
     std::vector<Coordinate> findKnowledgeCells(Knowledge value) const;
-
+    Coordinate huntMode();
+    Coordinate targetMode();
+    void evaluateCells();
+    void evaluateCellsSingleShip(int shipLength);
+    std::vector<Coordinate> getMaximalScorePositions();
 };
