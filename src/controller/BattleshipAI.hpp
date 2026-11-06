@@ -36,9 +36,10 @@ class BattleshipAI {
     std::vector<Coordinate> pickLineShots(std::vector<Coordinate> hits);
 
     // score evaluation
-    void evaluateScores();
-    void scoreShipPlacements(int shipLength);
+    void evaluateScores(bool includeHits);
+    void scoreShipPlacements(int shipLength, bool includeHits);
     std::vector<Coordinate> getBestCells();
+    std::vector<Coordinate> getBestCandidates(const std::vector<Coordinate> &candidates) const;
 
     // knowledge update
     void updateSunkCells(Coordinate coord, std::optional<ShipType> sunk);
