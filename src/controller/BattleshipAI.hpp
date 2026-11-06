@@ -31,9 +31,11 @@ private:
 
     std::vector<Coordinate> findKnowledgeCells(Knowledge value) const;
     Coordinate huntMode();
-    Coordinate targetMode();
+    Coordinate targetMode(std::vector<Coordinate> hits);
     void evaluateCells();
     void evaluateCellsSingleShip(int shipLength);
     std::vector<Coordinate> getMaximalScorePositions();
     void updateSunkedCells(Coordinate coord, std::optional<ShipType> sunk);
+    std::vector<Coordinate> getNeighbors(Coordinate center);
+    std::vector<Coordinate> multipleHitsTarget(std::vector<Coordinate> hits);
 };
