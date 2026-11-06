@@ -30,6 +30,7 @@ void BattleshipAI::recordShotResult(Coordinate coord, AttackResult result, std::
         m_knowledge[coord.y][coord.x] = CellKnowledge::Miss;
     } else {
         updateSunkCells(coord, sunk);
+
     }
 }
 
@@ -43,7 +44,6 @@ Coordinate BattleshipAI::huntMode() {
     std::vector<Coordinate> targets = {};
     evaluateScores();
     targets = getBestCells();
-    m_score = {};
     std::uniform_int_distribution<size_t> dist(0, targets.size() - 1);
     return targets[dist(m_rng)];
 }
@@ -62,6 +62,7 @@ Coordinate BattleshipAI::targetMode(std::vector<Coordinate> hits) {
 }
 
 std::vector<Coordinate> BattleshipAI::pickLineShots(std::vector<Coordinate> hits) {
+    std::vector<Coordinate> candidates;
     const int dirs[4][2] = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
     for (const auto &h : hits) {
         for (const auto &d : dirs) {
@@ -74,13 +75,17 @@ std::vector<Coordinate> BattleshipAI::pickLineShots(std::vector<Coordinate> hits
                 y += d[1];
             }
             if (inBounds(x, y) && m_knowledge[y][x] == CellKnowledge::Unknown)
-                return {{x, y}};
+                candidates.push_back({x, y});
         }
     }
-    return getUnknownNeighborsOfHits(hits);
+    if (candidates.empty()){
+        return getUnknownNeighborsOfHits(hits);
+    }
+    return candidates;
 }
 
 void BattleshipAI::evaluateScores() {
+    m_score = {};
     for (const auto &e : m_remainingShips) {
         int shipLength = Ship(e).length();
         scoreShipPlacements(shipLength);
@@ -136,6 +141,8 @@ void BattleshipAI::updateSunkCells(Coordinate coord, std::optional<ShipType> sun
     m_knowledge[coord.y][coord.x] = CellKnowledge::Hit;
     if (!sunk)
         return;
+    // erase sunk ship from the list
+    std::erase(m_remainingShips, *sunk);
     const int length = Ship(*sunk).length();
     for (int orient = 0; orient < 2; ++orient) {
         const int dx = (orient == 0) ? 1 : 0;
