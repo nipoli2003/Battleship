@@ -16,7 +16,7 @@ void BattleshipAI::reset() {
 
 Coordinate BattleshipAI::getNextShot() {
     Coordinate target = {};
-    std::vector<Coordinate> hits = this->findKnowledgeCells(Knowledge::Hit);
+    std::vector<Coordinate> hits = findKnowledgeCells(Knowledge::Hit);
     if (hits.empty()){
         target = huntMode();
     }else{
@@ -26,6 +26,13 @@ Coordinate BattleshipAI::getNextShot() {
 }
 
 void BattleshipAI::recordShotResult(Coordinate coord, AttackResult result, std::optional<ShipType> sunk) {
+    if (result == AttackResult::Hit){
+        m_known[coord.y][coord.x] = Knowledge::Hit;
+    }else if (result == AttackResult:: Miss){
+        m_known[coord.y][coord.x] = Knowledge::Miss;
+    }else{
+        updateSunkedCells(coord, sunk);
+    }
 }
 
 Coordinate BattleshipAI::huntMode(){
@@ -38,6 +45,7 @@ Coordinate BattleshipAI::huntMode(){
 }
 
 Coordinate BattleshipAI::targetMode(){
+    
 }
 
 void BattleshipAI::evaluateCells(){
@@ -73,7 +81,7 @@ void BattleshipAI::evaluateCellsSingleShip(int shipLength){
 }
 
 std::vector<Coordinate> BattleshipAI::getMaximalScorePositions(){
-    std::vector<Coordinate> best;
+    std::vector<Coordinate> bests;
     int maxScore = 0;
 
     for (int y = 0; y < Board::SIZE; ++y) {
@@ -84,14 +92,45 @@ std::vector<Coordinate> BattleshipAI::getMaximalScorePositions(){
             const int score = m_score[y][x];
             if (score > maxScore) {
                 maxScore = score;
-                best.clear();
-                best.push_back({x, y});
+                bests.clear();
+                bests.push_back({x, y});
             } else if (score == maxScore && score > 0) {
-                best.push_back({x, y});
+                bests.push_back({x, y});
             }
         }
     }
-    return best;
+    return bests;
+}
+
+void BattleshipAI::updateSunkedCells(Coordinate coord, std::optional<ShipType> sunk){
+    m_known[coord.y][coord.x] = Knowledge::Hit;
+    if (!sunk)
+        return;
+    const int length = Ship(*sunk).length();
+    for (int orient = 0; orient < 2; ++orient) {
+        const int dx = (orient == 0) ? 1 : 0;
+        const int dy = (orient == 0) ? 0 : 1;
+        for (int k = 0; k < length; ++k) {
+            const int startX = coord.x - k * dx;
+            const int startY = coord.y - k * dy;
+            const int endX = startX + (length - 1) * dx;
+            const int endY = startY + (length - 1) * dy;
+            if (startX < 0 || startY < 0 || endX >= Board::SIZE || endY >= Board::SIZE)
+                continue;
+            bool allHit = true;
+            for (int i = 0; i < length; ++i) {
+                if (m_known[startY + i * dy][startX + i * dx] != Knowledge::Hit) {
+                    allHit = false;
+                    break;
+                }
+            }
+            if (!allHit)
+                continue;
+            for (int i = 0; i < length; ++i)
+                m_known[startY + i * dy][startX + i * dx] = Knowledge::Sunk;
+            return;
+        }
+    }
 }
 
 

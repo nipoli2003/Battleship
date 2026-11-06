@@ -35,4 +35,5 @@ private:
     void evaluateCells();
     void evaluateCellsSingleShip(int shipLength);
     std::vector<Coordinate> getMaximalScorePositions();
+    void updateSunkedCells(Coordinate coord, std::optional<ShipType> sunk);
 };
