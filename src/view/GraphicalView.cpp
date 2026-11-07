@@ -7,6 +7,8 @@
 #include <optional>
 #include <random>
 #include <string>
+#include <chrono>
+#include <thread>
 
 const std::vector<ShipType> GraphicalView::SHIP_ORDER = {
     ShipType::Carrier,
@@ -32,12 +34,22 @@ bool GraphicalView::shouldClose() const {
 }
 
 void GraphicalView::close() {
+    std::this_thread::sleep_for(std::chrono::milliseconds(1500));
+
     UnloadRenderTexture(m_target);
     CloseWindow();
 }
 
 void GraphicalView::playClick() {
     AudioManager::instance().playSFX(SoundEffect::ButtonClick);
+}
+
+void GraphicalView::playClickMenu() {
+    AudioManager::instance().playSFX(SoundEffect::ButtonClickBack);
+}
+
+void GraphicalView::playClickQuit() {
+    AudioManager::instance().playSFX(SoundEffect::ButtonClickQuit);
 }
 
 // ------------------------------------------------------------------ helpers
@@ -166,7 +178,7 @@ void GraphicalView::renderSettingsModal(const ClientState& state) {
     drawButton(btnClose, "Close", hovClose);
 
     if ((hovClose && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) || IsKeyPressed(KEY_ESCAPE)) {
-        playClick();
+        playClickQuit();
         m_showSettingsModal = false;
         m_draggingMusic = false;
         m_draggingSFX = false;
@@ -329,7 +341,7 @@ void GraphicalView::renderMainMenu(const ClientState& state) {
     bool hovExit = !m_showSettingsModal && CheckCollisionPointRec(mouse, btnExit);
     drawButton(btnExit, "Exit Game", hovExit);
     if (hovExit && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-        playClick();
+        playClickQuit();
         if (m_owner) m_owner->requestExit();
     }
 
@@ -389,7 +401,7 @@ void GraphicalView::renderLobbySetup(const ClientState& state) {
     bool hovBack = !m_showSettingsModal && CheckCollisionPointRec(mouse, btnBack);
     drawButton(btnBack, "Back to Menu", hovBack);
     if (hovBack && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-        playClick();
+        playClickMenu();
         m_owner->resetToMenu();
     }
 }
@@ -422,7 +434,7 @@ void GraphicalView::renderLobbyWait(const ClientState& state) {
     bool hovBack = !m_showSettingsModal && CheckCollisionPointRec(mouse, btnBack);
     drawButton(btnBack, "Back to Menu", hovBack);
     if (hovBack && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-        playClick();
+        playClickMenu();
         if (m_owner) m_owner->resetToMenu();
     }
 }
@@ -611,7 +623,7 @@ void GraphicalView::renderGame(const ClientState& state) {
     bool hovLeave = !m_showSettingsModal && CheckCollisionPointRec(getVirtualMousePosition(), btnLeave);
     drawButton(btnLeave, "< Menu", hovLeave);
     if (hovLeave && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-        playClick();
+        playClickMenu();
         if (m_owner) m_owner->resetToMenu();
     }
 }
@@ -629,7 +641,7 @@ void GraphicalView::renderGameOver(const ClientState& state) {
     bool hovMenu = CheckCollisionPointRec(getVirtualMousePosition(), btnMenu);
     drawButton(btnMenu, "Back to Menu", hovMenu);
     if (hovMenu && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-        playClick();
+        playClickMenu();
         if (m_owner) m_owner->resetToMenu();
     }
 }

@@ -30,6 +30,8 @@ class GraphicalView : public IView {
     void drawButton(Rectangle bounds, const char* text, bool hovered);
     void handleTextInput(std::string& field, int maxLen);
     void playClick();
+    void playClickMenu();
+    void playClickQuit();
 
     // scene renderers
     void renderTitleScreen(const ClientState& state);
