@@ -22,12 +22,16 @@ void AudioManager::init() {
         "assets/audio/fire_4.wav"
     });
 
-    // 2. Load standard SFXs (either via loadSoundSafe or loadSoundVariationsSafe)
+    // 2a. Load standard SFXs (either via loadSoundSafe or loadSoundVariationsSafe)
     loadSoundSafe(SoundEffect::Hit,         "assets/audio/hit.wav");
     loadSoundSafe(SoundEffect::Miss,        "assets/audio/miss.wav");
     loadSoundSafe(SoundEffect::ShipSunk,    "assets/audio/sunk.wav");
-    loadSoundSafe(SoundEffect::AbilityPing, "assets/audio/sonar.wav");
     loadSoundSafe(SoundEffect::ButtonClick, "assets/audio/click.wav");
+    loadSoundSafe(SoundEffect::ButtonClickBack, "assets/audio/clickBack.wav");
+    loadSoundSafe(SoundEffect::ButtonClickQuit, "assets/audio/clickQuit.wav");
+
+    // 2b. Load SFXs for tactical abilities
+    loadSoundSafe(SoundEffect::AbilityPing, "assets/audio/sonar.wav");
     loadSoundSafe(SoundEffect::PlaneFlyby,  "assets/audio/plane_flyby.wav");
 
     // 3. Load all background music tracks

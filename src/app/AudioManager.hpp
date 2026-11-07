@@ -13,6 +13,8 @@ enum class SoundEffect {
     ShipSunk,
     AbilityPing,
     ButtonClick,
+    ButtonClickBack,
+    ButtonClickQuit,
     PlaneFlyby
 };
 
