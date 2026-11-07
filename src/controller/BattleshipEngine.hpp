@@ -34,8 +34,7 @@ class BattleshipEngine {
     // Returns true if the player has a non-sunk ship of this type
     bool hasActiveShip(int playerIdx, ShipType type) const;
 
-   // bool useSonar(int playerIdx, Coordinate target);
-
+    int useSonar(int playerIdx, Coordinate target);
     int fireTorpedo(int playerIdx, Coordinate target, Orientation orientation);
 
     Board m_boards[2];

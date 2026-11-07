@@ -122,32 +122,11 @@ int BattleshipEngine::useAbility(int playerIdx, Protocol::AbilityType ability, C
     if(ability == Protocol::AbilityType::Sonar){
         // Requires active destroyer
         if(!hasActiveShip(playerIdx, ShipType::Destroyer)) return -1;
-
-        const Board& enemy = m_boards[1 - playerIdx];
-        std::vector<const Ship*> found;
-        found.reserve(3);
-        for(int dy = -1; dy <= 1; ++dy){
-            for(int dx = -1; dx <= 1; ++dx){
-                int cx = target.x + dx;
-                int cy = target.y + dy;
-                if(cx < 0 || cx >= Board::SIZE || cy < 0 || cy >= Board::SIZE) continue;
-                auto shipOpt = enemy.getShipAt(cx, cy);
-                if(shipOpt && *shipOpt){
-                    const Ship* s = shipOpt->get();
-                    if(std::find(found.begin(), found.end(), s) == found.end()) found.push_back(s);
-                }
-            }
-        }
-
-        m_abilities[playerIdx][ability_number] = 0;
-        int count = static_cast<int>(found.size());
-        m_sonarLog[playerIdx] = "Sonar @ (" + std::to_string(target.x) + "," + std::to_string(target.y) + "): " +
-            (count == 0 ? "no enemy ships detected. " : std::to_string(count) + " enemy ship" + (count == 1 ? "" : "s") + " detected. ");
-
-        return count;
+        return useSonar(playerIdx, target);
     }
 
     if (ability == Protocol::AbilityType::Torpedo) {
+        // Requires active submarine
         if (!hasActiveShip(playerIdx, ShipType::Submarine)) return -1;
         return fireTorpedo(playerIdx, target, orientation);
     }
@@ -162,7 +141,34 @@ int BattleshipEngine::useAbility(int playerIdx, Protocol::AbilityType ability, C
     return -1;
 }
 
- int BattleshipEngine::fireTorpedo(int playerIdx, Coordinate target, Orientation orientation) {
+int BattleshipEngine::useSonar(int playerIdx, Coordinate target) {
+    const Board& enemy = m_boards[1 - playerIdx];
+    std::vector<const Ship*> found;
+    found.reserve(3);
+    for(int dy = -1; dy <= 1; ++dy){
+        for(int dx = -1; dx <= 1; ++dx){
+            int cx = target.x + dx;
+            int cy = target.y + dy;
+            if(cx < 0 || cx >= Board::SIZE || cy < 0 || cy >= Board::SIZE) continue;
+            auto shipOpt = enemy.getShipAt(cx, cy);
+            if(shipOpt && *shipOpt){
+                const Ship* s = shipOpt->get();
+                if(std::find(found.begin(), found.end(), s) == found.end()) found.push_back(s);
+            }
+        }
+    }
+
+    m_abilities[playerIdx][static_cast<int>(Protocol::AbilityType::Sonar)] = 0;
+    int count = static_cast<int>(found.size());
+    m_sonarLog[playerIdx] = "Sonar @ (" + std::to_string(target.x) + "," + std::to_string(target.y) + "): " +
+        (count == 0 ? "no enemy ships detected. " : std::to_string(count) + " enemy ship" + (count == 1 ? "" : "s") + " detected. ");
+
+    m_snapshot.state = (playerIdx == 0) ? MatchState::OpponentTurn : MatchState::PlayerTurn;
+    m_snapshot.turnNumber++;
+    return count;
+}
+ 
+int BattleshipEngine::fireTorpedo(int playerIdx, Coordinate target, Orientation orientation) {
     Board& enemy = m_boards[1 - playerIdx];
    
     const int dx = (orientation == Orientation::Horizontal) ? 1 : 0;
