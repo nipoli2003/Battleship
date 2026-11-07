@@ -3,6 +3,7 @@
 
 #include "controller/BattleshipEngine.hpp"
 #include "model/Protocol.hpp"
+#include "model/Ship.hpp"
 
 // game-state wrapper for GameServer
 class GameSession {
@@ -26,8 +27,8 @@ class GameSession {
     // - Victory/Defeat are flipped correctly per perspective.
     Protocol::StateUpdate buildSnapshot(int playerIdx) const;
 
-    int useAbility(int playerIdx, Protocol::AbilityType ability, Coordinate target);
-    [[nodiscard]] bool hasUsedAbility(int playerIdx) const noexcept;
+    int useAbility(int playerIdx, Protocol::AbilityType ability, Coordinate target, Orientation orientation = Orientation::Horizontal);
+    [[nodiscard]] bool hasAbility(int playerIdx, Protocol::AbilityType ability) const noexcept;
 
   private:
     BattleshipEngine m_engine;

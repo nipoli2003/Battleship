@@ -1,4 +1,5 @@
 #include "network/GameSession.hpp"
+#include "model/Protocol.hpp"
 
 namespace {
 
@@ -74,9 +75,14 @@ Protocol::StateUpdate GameSession::buildSnapshot(int playerIdx) const {
     Protocol::StateUpdate out;
     out.turnNumber = snap.turnNumber;
     
-    // Prepend the persistent sonar log (empty string if unused)
+    // Prepend the persistent ability logs (empty string if unused)
     const std::string sonar = m_engine.getSonarLog(playerIdx);
-    out.statusMessage = sonar + buildStatusMessage(snap, playerIdx);
+    const std::string torpedo = m_engine.getTorpedoLog(playerIdx);
+    out.statusMessage = sonar + torpedo + buildStatusMessage(snap, playerIdx);
+
+    for (int a = 0; a < Protocol::ABILITY_COUNT; ++a) {
+        out.ability_charges.push_back(m_engine.hasAbility(playerIdx, static_cast<Protocol::AbilityType>(a)));
+    }
 
     // flip Victory/Defeat so each player sees their own outcome
     switch (snap.state) {
@@ -114,10 +120,10 @@ Protocol::StateUpdate GameSession::buildSnapshot(int playerIdx) const {
     return out;
 }
 
-int GameSession::useAbility(int playerIdx, Protocol::AbilityType ability, Coordinate target){
-    return m_engine.useAbility(playerIdx, ability, target);
+int GameSession::useAbility(int playerIdx, Protocol::AbilityType ability, Coordinate target, Orientation orientation){
+    return m_engine.useAbility(playerIdx, ability, target, orientation);
 }
 
-bool GameSession::hasUsedAbility(int playerIdx) const noexcept{
-    return m_engine.hasUsedAbility(playerIdx);
+bool GameSession::hasAbility(int playerIdx, Protocol::AbilityType ability) const noexcept{
+    return m_engine.hasAbility(playerIdx, ability);
 }

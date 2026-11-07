@@ -18,9 +18,10 @@ class BattleshipEngine {
     void finishPlacement();
 
     // Tactical Abilities
-    int useAbility(int playerIdx, Protocol::AbilityType ability, Coordinate target);
-    [[nodiscard]] bool hasUsedAbility(int playerIdx) const noexcept { return m_abilityUsed[playerIdx]; }
+    int useAbility(int playerIdx, Protocol::AbilityType ability, Coordinate target, Orientation oerientation = Orientation::Horizontal);  // Orientation is for Torpedo
+    [[nodiscard]] bool hasAbility(int playerIdx, Protocol::AbilityType ability) const noexcept { return m_abilities[playerIdx][static_cast<int>(ability)]; }
     [[nodiscard]] std::string getSonarLog(int playerIdx) const { return m_sonarLog[playerIdx]; }
+    [[nodiscard]] std::string getTorpedoLog(int playerIdx) const { return m_torpedoLog[playerIdx]; }
 
     // Combat phase methods
     bool fire(int playerIdx, Coordinate target);
@@ -33,10 +34,15 @@ class BattleshipEngine {
     // Returns true if the player has a non-sunk ship of this type
     bool hasActiveShip(int playerIdx, ShipType type) const;
 
+   // bool useSonar(int playerIdx, Coordinate target);
+
+    int fireTorpedo(int playerIdx, Coordinate target, Orientation orientation);
+
     Board m_boards[2];
     bool m_placement_done[2]{false, false};
     GameSnapshot m_snapshot;
 
-    bool m_abilityUsed[2]{false, false};
+    bool m_abilities[2][Protocol::ABILITY_COUNT]{};
     std::string m_sonarLog[2];
+    std::string m_torpedoLog[2];
 };

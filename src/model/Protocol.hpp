@@ -73,11 +73,18 @@ enum class AbilityType : int {
     BombingRun = 2    // Carrier
 };
 
+inline constexpr int ABILITY_COUNT = 3;
+
+inline constexpr int START_CHARGES[ABILITY_COUNT] = {1, 1,1};
+
+inline constexpr int TORPEDO_RANGE = 10; // SIZE = 10
+
 struct UseAbility {
     MsgType type{USE_ABILITY};
     int abilityType{};  // Protocol::AbilityType as int
     int x{};
     int y{};
+    int orientation{};
 };
 
 struct LobbyCode {
@@ -110,6 +117,7 @@ struct StateUpdate {
     std::string statusMessage;
     std::vector<int> yourBoard;
     std::vector<int> enemyBoard;
+    std::vector<int> ability_charges;    // abilities left for the player
 };
 
 struct GameOver {
