@@ -155,8 +155,8 @@ void GameServer::runSession(ClientPtr p0,  ClientPtr p1) {
     GameSession session;
     ClientPtr clients[2] = {p0, p1};
 
-    sendLine(*clients[0], Protocol::to_json(Protocol::LobbyJoined{}));
-    sendLine(*clients[1], Protocol::to_json(Protocol::LobbyJoined{}));
+    sendLine(*clients[0], Protocol::to_json(Protocol::LobbyJoined{.playerIdx = 0}));
+    sendLine(*clients[1], Protocol::to_json(Protocol::LobbyJoined{.playerIdx = 1}));
     pushToAll(session, clients);
 
     std::atomic<bool> done{false};
@@ -237,11 +237,15 @@ void GameServer::handleLine(GameSession &session, ClientPtr clients[2], int play
 
         if (session.isOver()) {
             LOG_SRV_GAME("[session] Game over! Player ", playerIdx, " wins.");
+            // Send the final state first, so both clients see the sunk ship on the board
+            // AND have the chance to play the ShipSunk SFX before the game-over screen.
+            pushToAll(session, clients);
+
             for (int i = 0; i < 2; ++i) {
                 bool won = (i == playerIdx);
                 sendLine(*clients[i], Protocol::to_json(Protocol::GameOver{
-                                          .result = won ? Protocol::UserState::Victory : Protocol::UserState::Defeat,
-                                          .message = won ? "You sank the enemy fleet!" : "Your fleet has been destroyed."}));
+                                        .result = won ? Protocol::UserState::Victory : Protocol::UserState::Defeat,
+                                        .message = won ? "You sank the enemy fleet!" : "Your fleet has been destroyed."}));
             }
         } else {
             pushToAll(session, clients);

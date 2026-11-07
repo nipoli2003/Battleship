@@ -94,6 +94,7 @@ struct LobbyCode {
 
 struct LobbyJoined {
     MsgType type{LOBBY_JOINED};
+    int playerIdx{-1};   // 0 or 1, assigned by the server
 };
 
 struct LobbyError {
@@ -118,6 +119,9 @@ struct StateUpdate {
     std::vector<int> yourBoard;
     std::vector<int> enemyBoard;
     std::vector<int> ability_charges;    // abilities left for the player
+
+    int lastShooter{-1};   // -1 = no shot yet
+    int lastResult{-1};    // cast from AttackResult
 };
 
 struct GameOver {

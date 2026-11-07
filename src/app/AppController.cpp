@@ -56,13 +56,37 @@ void AppController::handleNetEvent(const Network::NetEvent& ev) {
         else if constexpr (std::is_same_v<T, Protocol::LobbyJoined>) {
             m_state.lobbySubState = LobbySubState::Waiting;
             m_state.statusMessage = "Waiting for opponent...";
+            m_state.localPlayerIdx = msg.playerIdx;
         }
         else if constexpr (std::is_same_v<T, Protocol::LobbyError>) {
             m_state.lobbySubState = LobbySubState::Error;
             m_state.lobbyError = msg.error;
         }
         else if constexpr (std::is_same_v<T, Protocol::StateUpdate>) {
-            const bool firstUpdate = (m_state.scene != AppScene::InGame);
+            const bool hadPriorState = (m_state.scene == AppScene::InGame);
+
+            // Did the board actually change since last update?
+            bool boardChanged = false;
+            if (hadPriorState &&
+                msg.yourBoard.size()  == m_state.yourBoard.size() &&
+                msg.enemyBoard.size() == m_state.enemyBoard.size()) {
+                if (msg.yourBoard  != m_state.yourBoard)  boardChanged = true;
+                if (msg.enemyBoard != m_state.enemyBoard) boardChanged = true;
+            }
+
+            if (hadPriorState && boardChanged && msg.lastShooter != -1) {
+                const bool iShot = (msg.lastShooter == m_state.localPlayerIdx);
+                if (!iShot) AudioManager::instance().playSFX(SoundEffect::FireSalvo);
+
+                switch (static_cast<AttackResult>(msg.lastResult)) {
+                    case AttackResult::Miss: AudioManager::instance().playSFX(SoundEffect::Miss);     break;
+                    case AttackResult::Hit:  AudioManager::instance().playSFX(SoundEffect::Hit);      break;
+                    case AttackResult::Sunk: AudioManager::instance().playSFX(SoundEffect::ShipSunk); break;
+                    default: break;
+                }
+            }
+
+            const bool firstUpdate = !hadPriorState;
             m_state.serverState   = msg.state;
             m_state.statusMessage = msg.statusMessage;
             m_state.yourBoard     = msg.yourBoard;
@@ -71,6 +95,11 @@ void AppController::handleNetEvent(const Network::NetEvent& ev) {
                 onEnterGame();
         }
         else if constexpr (std::is_same_v<T, Protocol::GameOver>) {
+            // Let the final ShipSunk sound play through before flipping the screen
+            if (m_state.serverState == Protocol::UserState::YourTurn ||
+                m_state.serverState == Protocol::UserState::OpponentTurn) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+            }
             m_state.gameOver = msg;
             m_state.serverState = msg.result;
             m_state.statusMessage = msg.message;

@@ -258,6 +258,8 @@ void GraphicalView::render(const ClientState& state) {
     EndDrawing();
 }
 
+// ------------------------------------------------------------------ Menu section renderers
+
 void GraphicalView::renderTitleScreen(const ClientState& state) {
     Vector2 mouse = getVirtualMousePosition();
     float time = static_cast<float>(GetTime());
@@ -438,6 +440,8 @@ void GraphicalView::renderLobbyWait(const ClientState& state) {
         if (m_owner) m_owner->resetToMenu();
     }
 }
+
+// ------------------------------------------------------------------ Board renderers
 
 void GraphicalView::randomizeLocalFleet() {
     m_localBoard.reset();

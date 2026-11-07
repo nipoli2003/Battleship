@@ -71,9 +71,12 @@ Protocol::StateUpdate GameSession::buildSnapshot(int playerIdx) const {
     const auto &snap = m_engine.getSnapshot();
     const Board &myBoard = m_engine.getBoard(playerIdx);
     const Board &foeBoard = m_engine.getBoard(1 - playerIdx);
-
+    
     Protocol::StateUpdate out;
     out.turnNumber = snap.turnNumber;
+
+    out.lastShooter = snap.lastShooter;
+    out.lastResult  = static_cast<int>(snap.lastResult);
     
     // Prepend the persistent ability logs (empty string if unused)
     const std::string sonar = m_engine.getSonarLog(playerIdx);

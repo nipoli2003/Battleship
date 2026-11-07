@@ -30,6 +30,11 @@ struct ClientState {
     // --- Settings ---
     int musicVolume = 70;
     int sfxVolume = 80;
+
+    int localPlayerIdx{-1};   // set when LobbyJoined arrives
+    int lastShooterSeen{-1};  // for SFX diffing
+    int lastResultSeen{-1};
+    int turnNumberSeen{-1};
 };
 
 #endif
