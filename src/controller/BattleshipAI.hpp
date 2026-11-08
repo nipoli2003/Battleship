@@ -43,6 +43,7 @@ class BattleshipAI {
 
     // knowledge update
     void updateSunkCells(Coordinate coord, std::optional<ShipType> sunk);
+    void clearStaleHits();
 
     // grid helpers
     std::vector<Coordinate> findCellsByKnowledge(CellKnowledge value) const;

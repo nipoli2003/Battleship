@@ -13,6 +13,7 @@ const FleetPlacement BattleshipAI::generateLegalPlacement() {
 }
 
 Coordinate BattleshipAI::getNextShot() {
+    clearStaleHits();
     Coordinate target = {};
     std::vector<Coordinate> hits = findCellsByKnowledge(CellKnowledge::Hit);
     if (hits.empty()) {
@@ -201,6 +202,14 @@ std::vector<Coordinate> BattleshipAI::findCellsByKnowledge(CellKnowledge value) 
         }
     }
     return result;
+}
+
+void BattleshipAI::clearStaleHits() {
+    std::vector<Coordinate> hits = findCellsByKnowledge(CellKnowledge::Hit);
+    if (hits.empty() || !getUnknownNeighborsOfHits(hits).empty())
+        return;
+    for (const auto &h : hits)
+        m_knowledge[h.y][h.x] = CellKnowledge::Sunk;
 }
 
 std::vector<Coordinate> BattleshipAI::getNeighbors(Coordinate center) {
