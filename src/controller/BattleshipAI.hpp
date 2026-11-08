@@ -18,9 +18,9 @@ class BattleshipAI {
     BattleshipAI();
 
     // populate ships during match setup
-    const FleetPlacement generateLegalPlacement();
+    [[nodiscard]] FleetPlacement generateLegalPlacement();
 
-    Coordinate getNextShot();
+    [[nodiscard]] Coordinate getNextShot();
     void recordShotResult(Coordinate coord, AttackResult result, std::optional<ShipType> sunk);
     void reset();
 
@@ -31,24 +31,24 @@ class BattleshipAI {
     std::array<std::array<int, Board::SIZE>, Board::SIZE> m_score{};
 
     // shot selection
-    Coordinate huntMode();
-    Coordinate targetMode(std::vector<Coordinate> hits);
-    std::vector<Coordinate> pickLineShots(std::vector<Coordinate> hits);
+    [[nodiscard]] Coordinate huntMode();
+    [[nodiscard]] Coordinate targetMode(const std::vector<Coordinate> &hits);
+    [[nodiscard]] std::vector<Coordinate> pickLineShots(const std::vector<Coordinate> &hits) const;
 
     // score evaluation
     void evaluateScores(bool includeHits);
     void scoreShipPlacements(int shipLength, bool includeHits);
-    std::vector<Coordinate> getBestCells();
-    std::vector<Coordinate> getBestCandidates(const std::vector<Coordinate> &candidates) const;
+    [[nodiscard]] std::vector<Coordinate> getBestCells() const;
+    [[nodiscard]] std::vector<Coordinate> getBestCandidates(const std::vector<Coordinate> &candidates) const;
 
     // knowledge update
     void updateSunkCells(Coordinate coord, std::optional<ShipType> sunk);
     void clearStaleHits();
 
     // grid helpers
-    std::vector<Coordinate> findCellsByKnowledge(CellKnowledge value) const;
-    std::vector<Coordinate> getNeighbors(Coordinate center);
-    std::vector<Coordinate> getUnknownNeighborsOfHits(std::vector<Coordinate> hits);
+    [[nodiscard]] std::vector<Coordinate> findCellsByKnowledge(CellKnowledge value) const;
+    [[nodiscard]] static std::vector<Coordinate> getNeighbors(Coordinate center);
+    [[nodiscard]] std::vector<Coordinate> getUnknownNeighborsOfHits(const std::vector<Coordinate> &hits) const;
     [[nodiscard]] static bool inBounds(int x, int y) noexcept;
     [[nodiscard]] static bool inBounds(Coordinate c) noexcept;
 };
