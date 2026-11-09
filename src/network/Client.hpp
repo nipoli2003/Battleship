@@ -36,6 +36,7 @@ class NetworkClient {
 
     // Gameplay
     void sendPlaceShips(const std::vector<Protocol::ShipPlacement>& payload);
+    void sendUseAbility(int abilityType, int x, int y);
     void sendFireShot(int x, int y);
 
     [[nodiscard]] bool isConnected() const noexcept {

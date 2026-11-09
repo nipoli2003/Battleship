@@ -166,6 +166,16 @@ void AppController::sendShot(int x, int y) {
     m_net->sendFireShot(x, y);
 }
 
+void AppController::sendAbility(int abilityType, int x, int y) {
+    if (!m_net || !m_net->isConnected()) {
+        std::cerr << "[app] cannot send ability: not connected\n";
+        return;
+    }
+    std::cerr << "[app] sending ability " << abilityType
+              << " at (" << x << ", " << y << ")\n";
+    m_net->sendUseAbility(abilityType, x, y);
+}
+
 void AppController::resetToMenu() {
     if (m_net) {
         m_net->disconnect();

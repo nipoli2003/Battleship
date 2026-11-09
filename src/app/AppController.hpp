@@ -24,6 +24,7 @@ class AppController {
     void connectAndCreate(const std::string& ip, int port);
     void connectAndJoin(const std::string& ip, int port, const std::string& code);
     bool sendPlacement(const std::vector<Protocol::ShipPlacement>& ships);
+    void sendAbility(int abilityType, int x, int y);
     void sendShot(int x, int y);
     void resetToMenu();
 

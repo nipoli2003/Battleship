@@ -122,6 +122,11 @@ void NetworkClient::sendFireShot(int x, int y) {
     sendMsg(Protocol::to_json(Protocol::FireShot{.x = x, .y = y}));
 }
 
+void NetworkClient::sendUseAbility(int abilityType, int x, int y) {
+    sendMsg(Protocol::to_json(Protocol::UseAbility{
+        .abilityType = abilityType, .x = x, .y = y}));
+}
+
 // Background thread: read from the socket, parse messages, and push events to the inbox.
 void NetworkClient::listenLoop() noexcept {
     try {
