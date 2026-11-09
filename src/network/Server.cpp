@@ -247,7 +247,9 @@ void GameServer::handleLine(GameSession &session, ClientPtr clients[2], int play
                                         .result = won ? Protocol::UserState::Victory : Protocol::UserState::Defeat,
                                         .message = won ? "You sank the enemy fleet!" : "Your fleet has been destroyed."}));
             }
-        } 
+        } else {
+            pushToAll(session, clients);            // <-- add this
+        }
     } else if (type == Protocol::USE_ABILITY) {
         auto msg = Protocol::from_json<Protocol::UseAbility>(line);
 

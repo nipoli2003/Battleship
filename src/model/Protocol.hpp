@@ -70,7 +70,7 @@ struct FireShot {
 enum class AbilityType : int {
     Sonar = 0,        // Destroyer
     Torpedo = 1,      // Submarine
-    BombingRun = 2    // Carrier
+    // BombingRun = 2    // Carrier
 };
 
 inline constexpr int ABILITY_COUNT = 3;
