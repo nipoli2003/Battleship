@@ -122,9 +122,13 @@ void NetworkClient::sendFireShot(int x, int y) {
     sendMsg(Protocol::to_json(Protocol::FireShot{.x = x, .y = y}));
 }
 
-void NetworkClient::sendUseAbility(int abilityType, int x, int y) {
+void NetworkClient::sendUseAbility(int abilityType, int x, int y, int orientation) {
     sendMsg(Protocol::to_json(Protocol::UseAbility{
-        .abilityType = abilityType, .x = x, .y = y}));
+        .abilityType = abilityType, 
+        .x = x, 
+        .y = y, 
+        .orientation = orientation
+    }));
 }
 
 // Background thread: read from the socket, parse messages, and push events to the inbox.

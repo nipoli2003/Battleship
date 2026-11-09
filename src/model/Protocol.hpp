@@ -84,7 +84,7 @@ struct UseAbility {
     int abilityType{};  // Protocol::AbilityType as int
     int x{};
     int y{};
-    int orientation{};
+    int orientation{0}; // 0 = Horizontal, 1 = Vertical
 };
 
 struct LobbyCode {

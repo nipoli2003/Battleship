@@ -87,10 +87,12 @@ void AppController::handleNetEvent(const Network::NetEvent& ev) {
             }
 
             const bool firstUpdate = !hadPriorState;
-            m_state.serverState   = msg.state;
-            m_state.statusMessage = msg.statusMessage;
-            m_state.yourBoard     = msg.yourBoard;
-            m_state.enemyBoard    = msg.enemyBoard;
+            m_state.serverState    = msg.state;
+            m_state.statusMessage  = msg.statusMessage;
+            m_state.yourBoard      = msg.yourBoard;
+            m_state.enemyBoard     = msg.enemyBoard;
+            m_state.abilityCharges = msg.ability_charges;
+
             if (firstUpdate)
                 onEnterGame();
         }
@@ -166,14 +168,22 @@ void AppController::sendShot(int x, int y) {
     m_net->sendFireShot(x, y);
 }
 
-void AppController::sendAbility(int abilityType, int x, int y) {
+void AppController::sendAbility(int abilityType, int x, int y, int orientation) {
     if (!m_net || !m_net->isConnected()) {
         std::cerr << "[app] cannot send ability: not connected\n";
         return;
     }
-    std::cerr << "[app] sending ability " << abilityType
-              << " at (" << x << ", " << y << ")\n";
-    m_net->sendUseAbility(abilityType, x, y);
+
+    // Play SFX immediately on the attacker's side for responsiveness
+    if (abilityType == static_cast<int>(Protocol::AbilityType::Sonar)) {
+        AudioManager::instance().playSFX(SoundEffect::AbilityPing);
+    } else if (abilityType == static_cast<int>(Protocol::AbilityType::Torpedo)) {
+        AudioManager::instance().playSFX(SoundEffect::FireSalvo);
+    }
+
+    std::cerr << "[app] sending ability " << abilityType << " at (" << x << ", " << y << ") orient=" << orientation << "\n";
+              
+    m_net->sendUseAbility(abilityType, x, y, orientation);
 }
 
 void AppController::resetToMenu() {

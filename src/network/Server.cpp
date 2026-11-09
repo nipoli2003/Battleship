@@ -247,6 +247,45 @@ void GameServer::handleLine(GameSession &session, ClientPtr clients[2], int play
                                         .result = won ? Protocol::UserState::Victory : Protocol::UserState::Defeat,
                                         .message = won ? "You sank the enemy fleet!" : "Your fleet has been destroyed."}));
             }
+        } 
+    } else if (type == Protocol::USE_ABILITY) {
+        auto msg = Protocol::from_json<Protocol::UseAbility>(line);
+
+        Orientation orient = (msg.orientation == 0) ? Orientation::Horizontal
+                                                    : Orientation::Vertical;
+
+        int result = session.useAbility(playerIdx,
+                                        static_cast<Protocol::AbilityType>(msg.abilityType),
+                                        {msg.x, msg.y},
+                                        orient);
+
+        if (result < 0) {
+            LOG_SRV_WARN("[session] Player ", playerIdx, " invalid ability use at (", msg.x, ", ", msg.y, ")");
+            sendLine(*clients[playerIdx], Protocol::to_json(Protocol::ServerError{.error = "Cannot use ability"}));
+            return;
+        }
+
+        // Success — log it. Include the ability name for readability.
+        const char* abilityName = "Unknown";
+        switch (static_cast<Protocol::AbilityType>(msg.abilityType)) {
+            case Protocol::AbilityType::Sonar:   abilityName = "Sonar";   break;
+            case Protocol::AbilityType::Torpedo: abilityName = "Torpedo"; break;
+        }
+        LOG_SRV_GAME("[session] Player ", playerIdx, " used ", abilityName, " at (", msg.x, ", ", msg.y, ") -> result=", result);
+
+        // Same pattern as FIRE_SHOT: if the ability ended the game
+        // (e.g., torpedo sank the final ship), send the final StateUpdate
+        // first, then GameOver. Otherwise just push the new state.
+        if (session.isOver()) {
+            LOG_SRV_GAME("[session] Game over! Player ", playerIdx, " wins via ", abilityName, ".");
+            pushToAll(session, clients);
+
+            for (int i = 0; i < 2; ++i) {
+                bool won = (i == playerIdx);
+                sendLine(*clients[i], Protocol::to_json(Protocol::GameOver{
+                                          .result = won ? Protocol::UserState::Victory : Protocol::UserState::Defeat,
+                                          .message = won ? "You sank the enemy fleet!" : "Your fleet has been destroyed."}));
+            }
         } else {
             pushToAll(session, clients);
         }
