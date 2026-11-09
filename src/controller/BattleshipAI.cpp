@@ -106,6 +106,7 @@ void BattleshipAI::scoreShipPlacements(int shipLength, bool includeHits) {
         for (int y = 0; y <= maxY; ++y) {
             for (int x = 0; x <= maxX; ++x) {
                 bool fits = true;
+                int hitsCovered = 0;
                 for (int i = 0; i < shipLength; ++i) {
                     CellKnowledge cell = m_knowledge[y + i * dy][x + i * dx];
                     bool free = (cell == CellKnowledge::Unknown) || (includeHits && cell == CellKnowledge::Hit);
@@ -113,11 +114,15 @@ void BattleshipAI::scoreShipPlacements(int shipLength, bool includeHits) {
                         fits = false;
                         break;
                     }
+                    if (cell == CellKnowledge::Hit){
+                        ++hitsCovered;
+                    }
                 }
                 if (!fits)
                     continue;
+                const int weight = includeHits ? hitsCovered : 1;
                 for (int i = 0; i < shipLength; ++i)
-                    ++m_score[y + i * dy][x + i * dx];
+                    m_score[y + i * dy][x + i * dx] += weight;
             }
         }
     }
