@@ -192,6 +192,12 @@ void GraphicalView::resetPlacementState() {
     m_placementSent = false;
 }
 
+bool GraphicalView::abilityAvailable(const ClientState& state, Protocol::AbilityType t) const {
+    int idx = static_cast<int>(t);
+    if (idx < 0 || idx >= static_cast<int>(state.abilityCharges.size())) return false;
+    return state.abilityCharges[idx] > 0;
+}
+
 void GraphicalView::render(const ClientState& state) {
     handleFullscreenToggle();
 

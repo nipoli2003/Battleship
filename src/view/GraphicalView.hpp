@@ -53,6 +53,14 @@ class GraphicalView : public IView {
     void resetPlacementState();
     void randomizeLocalFleet();
 
+    // --- ABILITY UI STATE ---
+    enum class AbilityMode { None, Sonar, Torpedo };
+    AbilityMode m_abilityMode{AbilityMode::None};
+    Orientation m_abilityOrientation{Orientation::Horizontal};
+
+    // Helper to check if an ability is available based on server updates
+    bool abilityAvailable(const ClientState& state, Protocol::AbilityType t) const;
+
     AppController* m_owner{nullptr};
 
     // --- Settings (main thread only) ---
