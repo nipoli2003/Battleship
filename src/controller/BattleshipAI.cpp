@@ -47,6 +47,8 @@ Coordinate BattleshipAI::huntMode() {
     std::vector<Coordinate> targets = {};
     evaluateScores(false);
     targets = getBestCells();
+    if (targets.empty())
+        targets = findCellsByKnowledge(CellKnowledge::Unknown);
     std::uniform_int_distribution<size_t> dist(0, targets.size() - 1);
     return targets[dist(m_rng)];
 }

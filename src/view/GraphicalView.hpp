@@ -43,6 +43,7 @@ class GraphicalView : public IView {
     // drawing helpers
     void renderSettingsModal(const ClientState& state);
     void renderExitConfirmModal();
+    void renderDifficultyModal();
     void drawSettingsTriggerButton(float x, float y);
     std::optional<int> drawSlider(Rectangle bounds, const char* label, int currentValue, bool& isDragging);
     void drawGrid(int startX, int startY, const std::vector<int>& cells, bool hideShips, bool isEnemy);
@@ -61,6 +62,10 @@ class GraphicalView : public IView {
 
     // --- Exit confirmation (main thread only) ---
     bool m_showExitConfirm{false};
+
+    // --- Bot difficulty selection (main thread only) ---
+    bool m_showDifficultyModal{false};
+    bool m_difficultyModalJustOpened{false}; // ignore the click that opened the modal
 
     // --- Lobby input (main thread only) ---
     bool m_isCreating{true};

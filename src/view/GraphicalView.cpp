@@ -212,6 +212,57 @@ void GraphicalView::renderExitConfirmModal() {
     }
 }
 
+void GraphicalView::renderDifficultyModal() {
+    Vector2 mouse = getVirtualMousePosition();
+
+    // the click that opened the modal must not also press a button inside it
+    const bool acceptInput = !m_difficultyModalJustOpened;
+    m_difficultyModalJustOpened = false;
+
+    DrawRectangle(0, 0, VIRTUAL_WIDTH, VIRTUAL_HEIGHT, Color{0, 0, 0, 190});
+
+    float modalW = 640.0f;
+    float modalH = 280.0f;
+    float modalX = (VIRTUAL_WIDTH - modalW) / 2.0f;
+    float modalY = (VIRTUAL_HEIGHT - modalH) / 2.0f;
+    Rectangle modalRec{modalX, modalY, modalW, modalH};
+
+    DrawRectangleRec(modalRec, Color{20, 32, 45, 255});
+    DrawRectangleLinesEx(modalRec, 2, SKYBLUE);
+
+    const char* title = "Select difficulty";
+    int titleSize = 28;
+    DrawText(title, (int)(modalX + (modalW - MeasureText(title, titleSize)) / 2.0f), (int)(modalY + 30.0f), titleSize, RAYWHITE);
+
+    const char* labels[3] = {"Easy", "Medium", "Hard"};
+    float btnW = 170.0f, btnH = 70.0f, gap = 25.0f;
+    float rowW = 3 * btnW + 2 * gap;
+    float rowX = modalX + (modalW - rowW) / 2.0f;
+    float rowY = modalY + 90.0f;
+
+    for (int i = 0; i < 3; ++i) {
+        Rectangle btn{rowX + i * (btnW + gap), rowY, btnW, btnH};
+        bool hov = CheckCollisionPointRec(mouse, btn);
+        drawButton(btn, labels[i], hov);
+        if (acceptInput && hov && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+            playClick();
+            m_showDifficultyModal = false;
+            // TODO: pass the chosen difficulty (i = 0 easy, 1 medium, 2 hard) to the bot
+            if (m_owner)
+                m_owner->startLocalBotMatch();
+            return;
+        }
+    }
+
+    Rectangle btnBack{modalX + (modalW - 140.0f) / 2.0f, modalY + modalH - 70.0f, 140.0f, 40.0f};
+    bool hovBack = CheckCollisionPointRec(mouse, btnBack);
+    drawButton(btnBack, "Back", hovBack);
+    if (acceptInput && ((hovBack && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) || IsKeyPressed(KEY_ESCAPE))) {
+        playClick();
+        m_showDifficultyModal = false;
+    }
+}
+
 void GraphicalView::resetPlacementState() {
     m_localBoard.reset();
     m_pendingPlacements.clear();
@@ -231,6 +282,10 @@ void GraphicalView::render(const ClientState& state) {
     // Don't leave the quit popup open if we've left the game (e.g. opponent disconnected).
     if (state.scene != AppScene::InGame)
         m_showExitConfirm = false;
+
+    // The difficulty popup only belongs to the main menu.
+    if (state.scene != AppScene::MainMenu)
+        m_showDifficultyModal = false;
 
     BeginTextureMode(m_target);
     ClearBackground(Color{15, 25, 35, 255});
@@ -267,6 +322,10 @@ void GraphicalView::render(const ClientState& state) {
 
     if (m_showExitConfirm) {
         renderExitConfirmModal();
+    }
+
+    if (m_showDifficultyModal) {
+        renderDifficultyModal();
     }
 
     EndTextureMode();
@@ -353,7 +412,7 @@ void GraphicalView::renderMainMenu(const ClientState& state) {
     float by = VIRTUAL_HEIGHT / 2.f - 60.f;
 
     Rectangle btnCreate{bx, by, bw, bh};
-    bool hovCreate = !m_showSettingsModal && CheckCollisionPointRec(mouse, btnCreate);
+    bool hovCreate = !m_showSettingsModal && !m_showDifficultyModal && CheckCollisionPointRec(mouse, btnCreate);
     drawButton(btnCreate, "Create Lobby", hovCreate);
     if (hovCreate && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
         playClick();
@@ -363,7 +422,7 @@ void GraphicalView::renderMainMenu(const ClientState& state) {
     }
 
     Rectangle btnJoin{bx, by + 65.f, bw, bh};
-    bool hovJoin = !m_showSettingsModal && CheckCollisionPointRec(mouse, btnJoin);
+    bool hovJoin = !m_showSettingsModal && !m_showDifficultyModal && CheckCollisionPointRec(mouse, btnJoin);
     drawButton(btnJoin, "Join Lobby", hovJoin);
     if (hovJoin && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
         playClick();
@@ -373,23 +432,23 @@ void GraphicalView::renderMainMenu(const ClientState& state) {
     }
 
     Rectangle btnBot{bx, by + 130.f, bw, bh};
-    bool hovBot = !m_showSettingsModal && CheckCollisionPointRec(mouse, btnBot);
+    bool hovBot = !m_showSettingsModal && !m_showDifficultyModal && CheckCollisionPointRec(mouse, btnBot);
     drawButton(btnBot, "Play vs Bot", hovBot);
     if (hovBot && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
         playClick();
-        if (m_owner)
-            m_owner->startLocalBotMatch();
+        m_showDifficultyModal = true;
+        m_difficultyModalJustOpened = true;
     }
 
     Rectangle btnExit{(VIRTUAL_WIDTH - bw) / 2.0f, by + 195.0f, bw, bh};
-    bool hovExit = !m_showSettingsModal && CheckCollisionPointRec(mouse, btnExit);
+    bool hovExit = !m_showSettingsModal && !m_showDifficultyModal && CheckCollisionPointRec(mouse, btnExit);
     drawButton(btnExit, "Exit Game", hovExit);
     if (hovExit && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
         playClick();
         if (m_owner) m_owner->requestExit();
     }
 
-    if (!m_showSettingsModal) {
+    if (!m_showSettingsModal && !m_showDifficultyModal) {
         drawSettingsTriggerButton(40.0f, VIRTUAL_HEIGHT - 65.0f);
     }
 }
