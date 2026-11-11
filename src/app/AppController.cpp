@@ -176,7 +176,7 @@ void AppController::sendAbility(int abilityType, int x, int y, int orientation) 
 
     // Play SFX immediately on the attacker's side for responsiveness
     if (abilityType == static_cast<int>(Protocol::AbilityType::Sonar)) {
-        AudioManager::instance().playSFX(SoundEffect::AbilityPing);
+        AudioManager::instance().playSFX(SoundEffect::Sonar);
     } else if (abilityType == static_cast<int>(Protocol::AbilityType::Torpedo)) {
         AudioManager::instance().playSFX(SoundEffect::FireSalvo);
     }

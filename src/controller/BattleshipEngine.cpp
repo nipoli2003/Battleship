@@ -170,21 +170,31 @@ int BattleshipEngine::useSonar(int playerIdx, Coordinate target) {
  
 int BattleshipEngine::fireTorpedo(int playerIdx, Coordinate target, Orientation orientation) {
     Board& enemy = m_boards[1 - playerIdx];
-   
     const int dx = (orientation == Orientation::Horizontal) ? 1 : 0;
     const int dy = (orientation == Orientation::Vertical) ? 1 : 0;
+
+    // Start from the edge of the board
+    int startX = (orientation == Orientation::Horizontal) ? 0 : target.x;
+    int startY = (orientation == Orientation::Vertical) ? 0 : target.y;
 
     std::vector<Coordinate> path;   /// the path the torpedo takes until a ship is hit, or it reaches the end of the board
     Coordinate impact;              /// the coordinate of the impact
     AttackResult result = AttackResult::Miss;
 
-    for (int i = 0; i < Protocol::TORPEDO_RANGE; ++i) {
-        Coordinate c{target.x + i * dx, target.y + i * dy};
+    for (int i = 0; i < Board::SIZE; ++i) {
+        Coordinate c{startX + i * dx, startY + i * dy};
+        
         if(c.x < 0 || c.x >= Board::SIZE || c.y < 0 || c.y >= Board::SIZE) break;
+        
         CellState enemy_cell = enemy.getCell(c.x, c.y);
         path.push_back(c);
+        
+        // Skip cells that were already shot
         if (enemy_cell == CellState::Hit || enemy_cell == CellState::Miss) continue;
+        
         result = enemy.receiveAttack(c);
+        
+        // Stop the torpedo if it hits a ship
         if ((result == AttackResult::Hit) || (result == AttackResult::Sunk)) {
             impact = c;
             break;
