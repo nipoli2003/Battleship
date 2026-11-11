@@ -2,7 +2,8 @@
 #include <chrono>
 
 BattleshipAI::BattleshipAI()
-    : m_rng(static_cast<unsigned>(std::chrono::steady_clock::now().time_since_epoch().count())) {
+    : m_rng(static_cast<unsigned>(std::chrono::steady_clock::now().time_since_epoch().count())),
+      m_threshold(1.0) {
     reset();
 }
 
@@ -38,6 +39,8 @@ void BattleshipAI::reset() {
     m_remainingShips = standardFleet;
     m_knowledge = {};
     m_score = {};
+    m_maxScore = 0;
+    m_threshold = 1.0;
 }
 
 Coordinate BattleshipAI::huntMode() {
@@ -89,6 +92,7 @@ std::vector<Coordinate> BattleshipAI::pickLineShots(const std::vector<Coordinate
 
 void BattleshipAI::evaluateScores(bool includeHits) {
     m_score = {};
+    m_maxScore = 0;
     for (const auto &e : m_remainingShips) {
         int shipLength = Ship(e).length();
         scoreShipPlacements(shipLength, includeHits);
@@ -120,8 +124,13 @@ void BattleshipAI::scoreShipPlacements(int shipLength, bool includeHits) {
                 if (!fits)
                     continue;
                 const int weight = includeHits ? hitsCovered : 1;
-                for (int i = 0; i < shipLength; ++i)
+                for (int i = 0; i < shipLength; ++i){
                     m_score[y + i * dy][x + i * dx] += weight;
+                    if (m_score[y + i * dy][x + i * dx] > m_maxScore
+                        && m_knowledge[y + i * dy][x + i * dx] == CellKnowledge::Unknown){
+                        m_maxScore = m_score[y + i * dy][x + i * dx];
+                    }
+                }
             }
         }
     }
@@ -129,19 +138,14 @@ void BattleshipAI::scoreShipPlacements(int shipLength, bool includeHits) {
 
 std::vector<Coordinate> BattleshipAI::getBestCells() const {
     std::vector<Coordinate> bests;
-    int maxScore = 0;
+    const double minScore = m_threshold * m_maxScore;
     for (int y = 0; y < Board::SIZE; ++y) {
         for (int x = 0; x < Board::SIZE; ++x) {
             if (m_knowledge[y][x] != CellKnowledge::Unknown)
                 continue;
             const int score = m_score[y][x];
-            if (score > maxScore) {
-                maxScore = score;
-                bests.clear();
+            if (score > 0 && score >= minScore)
                 bests.push_back({x, y});
-            } else if (score == maxScore && score > 0) {
-                bests.push_back({x, y});
-            }
         }
     }
     return bests;
@@ -149,17 +153,13 @@ std::vector<Coordinate> BattleshipAI::getBestCells() const {
 
 std::vector<Coordinate> BattleshipAI::getBestCandidates(const std::vector<Coordinate> &candidates) const {
     std::vector<Coordinate> bests;
-    int maxScore = -1;
+    const double minScore = m_threshold * m_maxScore;
     for (const auto &c : candidates) {
-        const int score = m_score[c.y][c.x];
-        if (score > maxScore) {
-            maxScore = score;
-            bests.clear();
+        if (m_score[c.y][c.x] >= minScore)
             bests.push_back(c);
-        } else if (score == maxScore) {
-            bests.push_back(c);
-        }
     }
+    if (bests.empty())
+        return candidates;
     return bests;
 }
 

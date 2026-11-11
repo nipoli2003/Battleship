@@ -62,8 +62,10 @@ class BattleshipAI {
   private:
     std::mt19937 m_rng;
     std::vector<ShipType> m_remainingShips;
-    std::array<std::array<CellKnowledge, Board::SIZE>, Board::SIZE> m_knowledge{}; ///< Known state of each opponent cell, indexed [y][x].
-    std::array<std::array<int, Board::SIZE>, Board::SIZE> m_score{};               ///< Placement density from the last evaluation, indexed [y][x].
+    std::array<std::array<CellKnowledge, Board::SIZE>, Board::SIZE> m_knowledge{};
+    std::array<std::array<int, Board::SIZE>, Board::SIZE> m_score{};
+    int m_maxScore{0};
+    double m_threshold{1.0}; ///< Fraction of the best score a cell needs to be a shot candidate (1.0 = best cells only).
 
     // shot selection
     /** @brief Shoots a random cell among the unknown ones covered by the most legal ship placements. */
@@ -78,9 +80,9 @@ class BattleshipAI {
     void evaluateScores(bool includeHits);
     /** @brief Adds to m_score every legal placement of a ship; with @p includeHits, Hit cells are allowed and each placement weighs as many hits as it covers. */
     void scoreShipPlacements(int shipLength, bool includeHits);
-    /** @brief Returns all unknown cells sharing the highest positive score. */
+    /** @brief Returns all unknown cells scoring at least m_threshold * m_maxScore. */
     [[nodiscard]] std::vector<Coordinate> getBestCells() const;
-    /** @brief Returns the candidates sharing the highest score. */
+    /** @brief Returns the candidates scoring at least m_threshold * m_maxScore (all candidates if none does). */
     [[nodiscard]] std::vector<Coordinate> getBestCandidates(const std::vector<Coordinate> &candidates) const;
 
     // knowledge update
