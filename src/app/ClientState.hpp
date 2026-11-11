@@ -39,7 +39,6 @@ struct ClientState {
 
     // --- Side Panel helper ---
     std::vector<std::string> abilityLogs;
-    bool showAbilityLogs = true;
 };
 
 #endif

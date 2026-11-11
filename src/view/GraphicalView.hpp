@@ -67,6 +67,7 @@ class GraphicalView : public IView {
     bool m_showSettingsModal{false};
     bool m_draggingMusic{false};
     bool m_draggingSFX{false};
+    bool m_showAbilityLogs{true};
 
     // --- Lobby input (main thread only) ---
     bool m_isCreating{true};
