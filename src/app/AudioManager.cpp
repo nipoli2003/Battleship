@@ -31,7 +31,7 @@ void AudioManager::init() {
     loadSoundSafe(SoundEffect::ButtonClickQuit, "assets/audio/clickQuit.wav");
 
     // 2b. Load SFXs for tactical abilities
-    loadSoundSafe(SoundEffect::AbilityPing, "assets/audio/sonar.wav");
+    loadSoundSafe(SoundEffect::Sonar, "assets/audio/sonar.wav");
     loadSoundSafe(SoundEffect::PlaneFlyby,  "assets/audio/plane_flyby.wav");
 
     // 3. Load all background music tracks

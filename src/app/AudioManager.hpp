@@ -11,7 +11,7 @@ enum class SoundEffect {
     Hit,
     Miss,
     ShipSunk,
-    AbilityPing,
+    Sonar,
     ButtonClick,
     ButtonClickBack,
     ButtonClickQuit,
