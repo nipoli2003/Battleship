@@ -28,7 +28,7 @@ class AppController {
     void sendShot(int x, int y);
     void resetToMenu();
     
-    void startLocalBotMatch();
+    void startLocalBotMatch(BotDifficulty difficulty);
 
     void requestExit();
 

@@ -40,7 +40,14 @@ void BattleshipAI::reset() {
     m_knowledge = {};
     m_score = {};
     m_maxScore = 0;
-    m_threshold = 1.0;
+}
+
+void BattleshipAI::setDifficulty(BotDifficulty difficulty) {
+    switch (difficulty) {
+    case BotDifficulty::Easy:   m_threshold = 0.05; break;
+    case BotDifficulty::Medium: m_threshold = 0.45; break;
+    case BotDifficulty::Hard:   m_threshold = 1.0; break;
+    }
 }
 
 Coordinate BattleshipAI::huntMode() {

@@ -8,7 +8,7 @@
 
 class LocalMatch {
   public:
-    explicit LocalMatch(int humanPlayerIdx = 0);
+    explicit LocalMatch(int humanPlayerIdx = 0, BotDifficulty difficulty = BotDifficulty::Hard);
 
     // bot places its fleet; engine enters placement phase
     void start();

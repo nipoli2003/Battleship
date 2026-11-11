@@ -235,6 +235,7 @@ void GraphicalView::renderDifficultyModal() {
     DrawText(title, (int)(modalX + (modalW - MeasureText(title, titleSize)) / 2.0f), (int)(modalY + 30.0f), titleSize, RAYWHITE);
 
     const char* labels[3] = {"Easy", "Medium", "Hard"};
+    const BotDifficulty levels[3] = {BotDifficulty::Easy, BotDifficulty::Medium, BotDifficulty::Hard};
     float btnW = 170.0f, btnH = 70.0f, gap = 25.0f;
     float rowW = 3 * btnW + 2 * gap;
     float rowX = modalX + (modalW - rowW) / 2.0f;
@@ -247,9 +248,8 @@ void GraphicalView::renderDifficultyModal() {
         if (acceptInput && hov && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
             playClick();
             m_showDifficultyModal = false;
-            // TODO: pass the chosen difficulty (i = 0 easy, 1 medium, 2 hard) to the bot
             if (m_owner)
-                m_owner->startLocalBotMatch();
+                m_owner->startLocalBotMatch(levels[i]);
             return;
         }
     }

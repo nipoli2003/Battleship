@@ -16,6 +16,12 @@ enum class CellKnowledge {
     Sunk
 };
 
+enum class BotDifficulty {
+    Easy,
+    Medium,
+    Hard
+};
+
 /**
  * @brief Computer opponent that places its fleet and chooses where to shoot.
  *
@@ -55,7 +61,15 @@ class BattleshipAI {
     void recordShotResult(Coordinate coord, AttackResult result, std::optional<ShipType> sunk);
 
     /**
+     * @brief Sets how strong the AI plays by choosing its shot threshold.
+     * @param difficulty Easy (0.1), Medium (0.4) or Hard (1.0, always the best cell).
+     */
+    void setDifficulty(BotDifficulty difficulty);
+
+    /**
      * @brief Restores the initial state: full fleet remaining, all cells unknown, scores cleared.
+     *
+     * The difficulty is a setting, not game state, so it is kept.
      */
     void reset();
 

@@ -1,8 +1,9 @@
 #include "controller/LocalMatch.hpp"
 #include "helpers/Log.hpp"
 
-LocalMatch::LocalMatch(int humanPlayerIdx)
+LocalMatch::LocalMatch(int humanPlayerIdx, BotDifficulty difficulty)
     : m_humanIdx(humanPlayerIdx), m_botIdx(1 - humanPlayerIdx) {
+    m_bot.setDifficulty(difficulty);
     m_engine.startNewGame();
 }
 
