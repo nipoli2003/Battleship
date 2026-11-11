@@ -36,6 +36,10 @@ struct ClientState {
     int lastShooterSeen{-1};  // for SFX diffing
     int lastResultSeen{-1};
     int turnNumberSeen{-1};
+
+    // --- Side Panel helper ---
+    std::vector<std::string> abilityLogs;
+    bool showAbilityLogs = true;
 };
 
 #endif

@@ -120,6 +120,8 @@ struct StateUpdate {
     std::vector<int> enemyBoard;
     std::vector<int> ability_charges;    // abilities left for the player
 
+    std::vector<std::string> abilityLogs; // side panel helper for ability log
+
     int lastShooter{-1};   // -1 = no shot yet
     int lastResult{-1};    // cast from AttackResult
 };

@@ -81,7 +81,11 @@ Protocol::StateUpdate GameSession::buildSnapshot(int playerIdx) const {
     // Prepend the persistent ability logs (empty string if unused)
     const std::string sonar = m_engine.getSonarLog(playerIdx);
     const std::string torpedo = m_engine.getTorpedoLog(playerIdx);
-    out.statusMessage = sonar + torpedo + buildStatusMessage(snap, playerIdx);
+
+    // new implementation for status message and ability logs
+    out.statusMessage = buildStatusMessage(snap, playerIdx);
+    if(!sonar.empty()) out.abilityLogs.push_back(sonar);
+    if(!torpedo.empty()) out.abilityLogs.push_back(torpedo);
 
     for (int a = 0; a < Protocol::ABILITY_COUNT; ++a) {
         out.ability_charges.push_back(m_engine.hasAbility(playerIdx, static_cast<Protocol::AbilityType>(a)));

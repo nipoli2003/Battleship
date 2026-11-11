@@ -92,6 +92,7 @@ void AppController::handleNetEvent(const Network::NetEvent& ev) {
             m_state.yourBoard      = msg.yourBoard;
             m_state.enemyBoard     = msg.enemyBoard;
             m_state.abilityCharges = msg.ability_charges;
+            m_state.abilityLogs    = msg.abilityLogs;
 
             if (firstUpdate)
                 onEnterGame();
