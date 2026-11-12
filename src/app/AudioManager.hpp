@@ -15,7 +15,8 @@ enum class SoundEffect {
     ButtonClick,
     ButtonClickBack,
     ButtonClickQuit,
-    PlaneFlyby
+    BombingRun,
+    Torpedo
 };
 
 enum class MusicTrack {

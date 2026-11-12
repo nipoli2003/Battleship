@@ -21,14 +21,15 @@ void BattleshipEngine::startNewGame() {
     m_sonarLog[1].clear();   
     m_torpedoLog[0].clear();
     m_torpedoLog[1].clear();
+    m_BombingRunLog[0].clear();
+    m_BombingRunLog[1].clear();
 
     m_snapshot = GameSnapshot{};
     m_snapshot.state = MatchState::PlacementPhase;
     m_snapshot.statusMessage = "Waiting for both players to place ships.";
 }
 
-bool BattleshipEngine::placeShips(int playerIdx,
-                                  const std::vector<std::pair<ShipType, std::pair<Coordinate, Orientation>>> &ships) {
+bool BattleshipEngine::placeShips(int playerIdx, const std::vector<std::pair<ShipType, std::pair<Coordinate, Orientation>>> &ships) {
     if (m_placement_done[playerIdx])
         return false;
 
@@ -104,7 +105,6 @@ bool BattleshipEngine::hasActiveShip(int playerIdx, ShipType type) const {
 }
 
 int BattleshipEngine::useAbility(int playerIdx, Protocol::AbilityType ability, Coordinate target, Orientation orientation) {
-
     const int ability_number = static_cast<int>(ability);
 
     // 1. Once per game
@@ -131,12 +131,11 @@ int BattleshipEngine::useAbility(int playerIdx, Protocol::AbilityType ability, C
         return fireTorpedo(playerIdx, target, orientation);
     }
 
-
-    // if (ability == Protocol::AbilityType::BombingRun) {
-    //     if (!hasActiveShip(playerIdx, ShipType::Carrier)) return -1;
-    //     // TODO: Implement bombing run (e.g., hit a cross shape)
-    //     return -1; // Not implemented yet
-    // }
+    if (ability == Protocol::AbilityType::BombingRun) {
+        // Requires active Carrier
+        if (!hasActiveShip(playerIdx, ShipType::Carrier)) return -1; 
+        return fireBombingRun(playerIdx, target, orientation);
+    }
 
     return -1;
 }
@@ -160,8 +159,13 @@ int BattleshipEngine::useSonar(int playerIdx, Coordinate target) {
 
     m_abilities[playerIdx][static_cast<int>(Protocol::AbilityType::Sonar)] = 0;
     int count = static_cast<int>(found.size());
-    m_sonarLog[playerIdx] = "Sonar @ (" + std::to_string(target.x) + "," + std::to_string(target.y) + "): " +
-        (count == 0 ? "no enemy ships detected. " : std::to_string(count) + " enemy ship" + (count == 1 ? "" : "s") + " detected. ");
+
+    m_snapshot.lastShooter = playerIdx; 
+    m_snapshot.lastResult = (count > 0) ? AttackResult::Hit : AttackResult::Miss; // Just so the SFX plays
+    m_snapshot.lastAbilityType = static_cast<int>(Protocol::AbilityType::Sonar);
+    m_snapshot.lastAbilityX = target.x;
+    m_snapshot.lastAbilityY = target.y;
+    m_snapshot.lastAbilityResult = count;
 
     m_snapshot.state = (playerIdx == 0) ? MatchState::OpponentTurn : MatchState::PlayerTurn;
     m_snapshot.turnNumber++;
@@ -203,10 +207,15 @@ int BattleshipEngine::fireTorpedo(int playerIdx, Coordinate target, Orientation 
 
     const bool hit = (result == AttackResult::Hit) || (result == AttackResult::Sunk);
 
-    m_abilities[playerIdx][static_cast<int>(Protocol::AbilityType::Torpedo)] = 0;
+    m_abilities[playerIdx][static_cast<int>(Protocol::AbilityType::Torpedo)]--;
 
     m_snapshot.lastShooter = playerIdx;
     m_snapshot.lastResult = result;
+    
+    m_snapshot.lastAbilityType = static_cast<int>(Protocol::AbilityType::Torpedo);
+    m_snapshot.lastAbilityX = target.x;
+    m_snapshot.lastAbilityY = target.y;
+    m_snapshot.lastAbilityResult = hit ? 1 : 0; // Torpedo returns 1 for hit, 0 for miss
 
     m_torpedoLog[playerIdx] = "Torpedo @ (" + std::to_string(target.x) + "," + std::to_string(target.y) +
                                 "):" + (hit ? "hit at (" + std::to_string(impact.x) + "," + std::to_string(impact.y) +
@@ -217,11 +226,60 @@ int BattleshipEngine::fireTorpedo(int playerIdx, Coordinate target, Orientation 
         m_snapshot.statusMessage = "Game over!";
         return 1;
     }
-    
     else {
         m_snapshot.state = (playerIdx == 0) ? MatchState::OpponentTurn : MatchState::PlayerTurn;
         m_snapshot.turnNumber++;
         return hit ? 1 : 0;
     }
+}
 
+int BattleshipEngine::fireBombingRun(int playerIdx, Coordinate target, Orientation orientation) {
+    Board& enemy = m_boards[1 - playerIdx];
+    const int dx = (orientation == Orientation::Horizontal) ? 1 : 0;
+    const int dy = (orientation == Orientation::Vertical) ? 1 : 0;
+    int startX = target.x;
+    int startY = target.y;
+
+    Coordinate impact;
+    AttackResult result = AttackResult::Miss;
+    int hits = 0; // <-- Track hits
+
+    for (int i = 0; i < 3; ++i) {
+        int cx = startX + (i * dx);
+        int cy = startY + (i * dy);
+
+        if (cx >= 0 && cx < Board::SIZE && cy >= 0 && cy < Board::SIZE) {
+            AttackResult res = enemy.receiveAttack({cx, cy});
+            if (res == AttackResult::Sunk) {
+                result = AttackResult::Sunk;
+                impact = {cx, cy};
+                hits++;
+            } else if (res == AttackResult::Hit && result != AttackResult::Sunk) {
+                result = AttackResult::Hit;
+                impact = {cx, cy};
+                hits++;
+            }
+        }
+    }
+
+    m_abilities[playerIdx][static_cast<int>(Protocol::AbilityType::BombingRun)]--;
+
+    m_snapshot.lastShooter = playerIdx;
+    m_snapshot.lastResult = result;
+    
+    m_snapshot.lastAbilityType = static_cast<int>(Protocol::AbilityType::BombingRun);
+    m_snapshot.lastAbilityX = target.x;
+    m_snapshot.lastAbilityY = target.y;
+    m_snapshot.lastAbilityResult = hits;
+
+    if (enemy.allShipsSunk()) {
+        m_snapshot.state = (playerIdx == 0) ? MatchState::Victory : MatchState::Defeat;
+        m_snapshot.statusMessage = "Game over!";
+        return hits;
+    }
+    else {
+        m_snapshot.state = (playerIdx == 0) ? MatchState::OpponentTurn : MatchState::PlayerTurn;
+        m_snapshot.turnNumber++;
+        return hits;
+    }
 }

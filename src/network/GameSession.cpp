@@ -3,43 +3,49 @@
 
 namespace {
 
-// The engine keeps one neutral snapshot for both players, so its statusMessage
-// can't say "you" vs "opponent". Build the text per player here instead.
-std::string buildStatusMessage(const GameSnapshot &snap, int playerIdx) {
-    const bool myTurn = (snap.state == MatchState::PlayerTurn && playerIdx == 0) ||
-                        (snap.state == MatchState::OpponentTurn && playerIdx == 1);
-
-    switch (snap.state) {
-    case MatchState::PlacementPhase:
-        return snap.statusMessage;
-    case MatchState::Victory:
-    case MatchState::Defeat:
-        return "Game over!";
-    default:
-        break;
-    }
-
-    std::string last;
-    if (snap.lastShooter != -1) {
+    // The engine keeps one neutral snapshot for both players, so its statusMessage
+    // can't say "you" vs "opponent". Build the text per player here instead.
+    std::string buildStatusMessage(const GameSnapshot &snap, int playerIdx) {
         const bool iShot = (snap.lastShooter == playerIdx);
-        switch (snap.lastResult) {
-        case AttackResult::Miss:
-            last = iShot ? "You missed. " : "Opponent missed. ";
-            break;
-        case AttackResult::Hit:
-            last = iShot ? "Hit! " : "Opponent hit your ship! ";
-            break;
-        case AttackResult::Sunk:
-            last = iShot ? "You sunk a ship! " : "Opponent sunk one of your ships! ";
-            break;
-        default:
-            break;
+
+        // 1. Check if an ability was just used
+        if (snap.lastAbilityType != -1) {
+            std::string msg = iShot ? "Your " : "Opponent ";
+            
+            if (snap.lastAbilityType == static_cast<int>(Protocol::AbilityType::Sonar)) {
+                msg += "Sonar: " + std::to_string(snap.lastAbilityResult) + " ships detected. ";
+            } else if (snap.lastAbilityType == static_cast<int>(Protocol::AbilityType::Torpedo)) {
+                msg += "Torpedo: " + std::string(snap.lastAbilityResult ? "Hit! " : "Missed. ");
+            } else if (snap.lastAbilityType == static_cast<int>(Protocol::AbilityType::BombingRun)) {
+                msg += "Bombing Run: " + std::to_string(snap.lastAbilityResult) + " hits. ";
+            }
+            
+            msg += iShot ? "Opponent's turn..." : "Your turn - fire!";
+            return msg;
         }
+
+        // 2. Otherwise, standard shot logic
+        const bool myTurn = (snap.state == MatchState::PlayerTurn && playerIdx == 0) ||
+                            (snap.state == MatchState::OpponentTurn && playerIdx == 1);
+
+        switch (snap.state) {
+        case MatchState::PlacementPhase: return snap.statusMessage;
+        case MatchState::Victory:
+        case MatchState::Defeat: return "Game over!";
+        default: break;
+        }
+
+        std::string last;
+        if (snap.lastShooter != -1) {
+            switch (snap.lastResult) {
+            case AttackResult::Miss: last = iShot ? "You missed. " : "Opponent missed. "; break;
+            case AttackResult::Hit:  last = iShot ? "Hit! " : "Opponent hit your ship! "; break;
+            case AttackResult::Sunk: last = iShot ? "You sunk a ship! " : "Opponent sunk one of your ships! "; break;
+            default: break;
+            }
+        }
+        return last + (myTurn ? "Your turn - fire!" : "Opponent's turn...");
     }
-
-    return last + (myTurn ? "Your turn - fire!" : "Opponent's turn...");
-}
-
 } // namespace
 
 bool GameSession::placeShips(int playerIdx, const std::vector<Protocol::ShipPlacement> &ships) {
@@ -88,7 +94,7 @@ Protocol::StateUpdate GameSession::buildSnapshot(int playerIdx) const {
     if(!torpedo.empty()) out.abilityLogs.push_back(torpedo);
 
     for (int a = 0; a < Protocol::ABILITY_COUNT; ++a) {
-        out.ability_charges.push_back(m_engine.hasAbility(playerIdx, static_cast<Protocol::AbilityType>(a)));
+        out.ability_charges.push_back(m_engine.getAbilityCharges(playerIdx, static_cast<Protocol::AbilityType>(a)));
     }
 
     // flip Victory/Defeat so each player sees their own outcome
@@ -112,6 +118,10 @@ Protocol::StateUpdate GameSession::buildSnapshot(int playerIdx) const {
 
     out.yourBoard.reserve(Board::SIZE * Board::SIZE);
     out.enemyBoard.reserve(Board::SIZE * Board::SIZE);
+    out.lastAbilityType = snap.lastAbilityType;
+    out.lastAbilityX = snap.lastAbilityX;
+    out.lastAbilityY = snap.lastAbilityY;
+    out.lastAbilityResult = snap.lastAbilityResult;
 
     for (int y = 0; y < Board::SIZE; ++y) {
         for (int x = 0; x < Board::SIZE; ++x) {
@@ -132,5 +142,5 @@ int GameSession::useAbility(int playerIdx, Protocol::AbilityType ability, Coordi
 }
 
 bool GameSession::hasAbility(int playerIdx, Protocol::AbilityType ability) const noexcept{
-    return m_engine.hasAbility(playerIdx, ability);
+    return m_engine.getAbilityCharges(playerIdx, ability);
 }

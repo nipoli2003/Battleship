@@ -195,7 +195,30 @@ void GraphicalView::resetPlacementState() {
 bool GraphicalView::abilityAvailable(const ClientState& state, Protocol::AbilityType t) const {
     int idx = static_cast<int>(t);
     if (idx < 0 || idx >= static_cast<int>(state.abilityCharges.size())) return false;
-    return state.abilityCharges[idx] > 0;
+    if (state.abilityCharges[idx] <= 0) return false;
+
+    // Check if the required ship is still alive on the board
+    ShipType requiredShip;
+    CellState requiredCell;
+    
+    if (t == Protocol::AbilityType::Sonar) {
+        requiredShip = ShipType::Destroyer;
+        requiredCell = CellState::Destroyer;
+    } else if (t == Protocol::AbilityType::Torpedo) {
+        requiredShip = ShipType::Submarine;
+        requiredCell = CellState::Submarine;
+    } else if (t == Protocol::AbilityType::BombingRun) {
+        requiredShip = ShipType::Carrier;
+        requiredCell = CellState::Carrier;
+    } else {
+        return true;
+    }
+
+    // If the ship is still present as a ship type, it's alive.
+    for (int val : state.yourBoard) {
+        if (val == static_cast<int>(requiredCell)) return true;
+    }
+    return false;
 }
 
 void GraphicalView::render(const ClientState& state) {
@@ -622,6 +645,13 @@ void GraphicalView::handleBoardClicks(int ex, int ey) {
 
                     m_abilityMode = AbilityMode::None; // Exit targeting mode
                 }
+                // Toggle for BombingRun mode: allows user to deselect ability to avoid misfire
+                else if (m_abilityMode == AbilityMode::BombingRun) {
+                    if (m_owner) 
+                        m_owner->sendAbility(static_cast<int>(Protocol::AbilityType::BombingRun), x, y,(m_abilityOrientation == Orientation::Horizontal) ? 0 : 1);
+
+                    m_abilityMode = AbilityMode::None; // Exit targeting mode
+                }
                 return;
             }
         }
@@ -652,6 +682,7 @@ void GraphicalView::renderGame(const ClientState& state) {
             m_abilityMode = (m_abilityMode == AbilityMode::Sonar) ? AbilityMode::None : AbilityMode::Sonar;
             AudioManager::instance().playSFX(SoundEffect::Sonar);
         }
+
         // Toggle Torpedo
         if (IsKeyPressed(KEY_T) && abilityAvailable(state, Protocol::AbilityType::Torpedo)) {
             m_abilityMode = (m_abilityMode == AbilityMode::Torpedo) ? AbilityMode::None : AbilityMode::Torpedo;
@@ -661,6 +692,17 @@ void GraphicalView::renderGame(const ClientState& state) {
         if (m_abilityMode == AbilityMode::Torpedo && IsKeyPressed(KEY_R)) {
             m_abilityOrientation = (m_abilityOrientation == Orientation::Horizontal) ? Orientation::Vertical : Orientation::Horizontal;
         }
+
+        // Toggle BombingRun
+        if (IsKeyPressed(KEY_B) && abilityAvailable(state, Protocol::AbilityType::BombingRun)) {
+            m_abilityMode = (m_abilityMode == AbilityMode::BombingRun) ? AbilityMode::None : AbilityMode::BombingRun;
+            AudioManager::instance().playSFX(SoundEffect::BombingRun);
+        }
+        // Rotate BombingRun (NEW)
+        if (m_abilityMode == AbilityMode::BombingRun && IsKeyPressed(KEY_R)) {
+            m_abilityOrientation = (m_abilityOrientation == Orientation::Horizontal) ? Orientation::Vertical : Orientation::Horizontal;
+        }
+
         // Cancel
         if (IsKeyPressed(KEY_ESCAPE)) m_abilityMode = AbilityMode::None;
 
@@ -696,6 +738,26 @@ void GraphicalView::renderGame(const ClientState& state) {
                         2, RED
                     );
                 }
+            } else if (m_abilityMode == AbilityMode::BombingRun) {
+                // Draw 3x1 Bombing Run Preview
+                for (int i = 0; i < 3; ++i) {
+                    int drawX = (m_abilityOrientation == Orientation::Horizontal) ? hx + i : hx;
+                    int drawY = (m_abilityOrientation == Orientation::Vertical) ? hy + i : hy;
+
+                    // Ensure the 3-cell strike zone stays within the board
+                    if (drawX >= 0 && drawX < Board::SIZE && drawY >= 0 && drawY < Board::SIZE) {
+                        Rectangle cell = {
+                            (float)(egx + drawX * CELL_SIZE), 
+                            (float)(gy + drawY * CELL_SIZE), 
+                            (float)CELL_SIZE, 
+                            (float)CELL_SIZE
+                        };
+                        
+                        // Draw a translucent orange fill and a solid outline
+                        DrawRectangleRec(cell, Fade(ORANGE, 0.2f));
+                        DrawRectangleLinesEx(cell, 2, ORANGE);
+                    }
+                }
             }
         }
     } else if (state.serverState != Protocol::UserState::YourTurn) {
@@ -708,45 +770,50 @@ void GraphicalView::renderGame(const ClientState& state) {
     float btnH = 40.0f;
     float gap = 20.0f;
     
-    // Calculate total width to center it
-    float totalW = (btnW * 2) + gap;
+    // Calculate total width to center it (now 3 buttons)
+    float totalW = (btnW * 3) + (gap * 2);
     float startX = (VIRTUAL_WIDTH - totalW) / 2.0f;
     
-    // Sonar Button
+    // 1. Sonar Button
     Rectangle btnSonar{startX, (float)barY, btnW, btnH};
     bool hovSonar = !m_showSettingsModal && CheckCollisionPointRec(getVirtualMousePosition(), btnSonar);
     bool sonarAvail = abilityAvailable(state, Protocol::AbilityType::Sonar);
     bool sonarActive = (m_abilityMode == AbilityMode::Sonar);
-    
-    // Draw text depending on the "state" of the ability: TOGGLE ON, TOGGLE OFF or USED
-    Color sonarColor = sonarActive ? SKYBLUE : (sonarAvail ? RAYWHITE : DARKGRAY);
     drawButton(btnSonar, sonarAvail ? (sonarActive ? "Cancel Sonar" : "[SPACE] Sonar") : "Sonar (Used)", hovSonar);
-    if (!sonarAvail) DrawRectangleLinesEx(btnSonar, 2, DARKGRAY); // Gray out
-    
+    if (!sonarAvail) DrawRectangleLinesEx(btnSonar, 2, DARKGRAY);
     if (hovSonar && IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && sonarAvail && state.serverState == Protocol::UserState::YourTurn) {
         m_abilityMode = sonarActive ? AbilityMode::None : AbilityMode::Sonar;
         AudioManager::instance().playSFX(SoundEffect::ButtonClick);
     }
 
-    // Torpedo Button
+    // 2. Torpedo Button
     Rectangle btnTorpedo{startX + btnW + gap, (float)barY, btnW, btnH};
     bool hovTorpedo = !m_showSettingsModal && CheckCollisionPointRec(getVirtualMousePosition(), btnTorpedo);
     bool torpAvail = abilityAvailable(state, Protocol::AbilityType::Torpedo);
     bool torpActive = (m_abilityMode == AbilityMode::Torpedo);
-    
-    // Draw text depending on the "state" of the ability: TOGGLE ON, TOGGLE OFF or USED
     drawButton(btnTorpedo, torpAvail ? (torpActive ? "Cancel Torpedo" : "[T] Torpedo") : "Torpedo (Used)", hovTorpedo);
     if (!torpAvail) DrawRectangleLinesEx(btnTorpedo, 2, DARKGRAY);
-    
     if (hovTorpedo && IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && torpAvail && state.serverState == Protocol::UserState::YourTurn) {
         m_abilityMode = torpActive ? AbilityMode::None : AbilityMode::Torpedo;
         AudioManager::instance().playSFX(SoundEffect::ButtonClick);
     }
 
-    // Orientation Indicator (only when Torpedo is active)
-    if (torpActive) {
+    // 3. Bombing Run Button (NEW)
+    Rectangle btnBomb{startX + (btnW + gap) * 2, (float)barY, btnW, btnH};
+    bool hovBomb = !m_showSettingsModal && CheckCollisionPointRec(getVirtualMousePosition(), btnBomb);
+    bool bombAvail = abilityAvailable(state, Protocol::AbilityType::BombingRun);
+    bool bombActive = (m_abilityMode == AbilityMode::BombingRun);
+    drawButton(btnBomb, bombAvail ? (bombActive ? "Cancel Bombing" : "[B] Bombing") : "Bombing (Used)", hovBomb);
+    if (!bombAvail) DrawRectangleLinesEx(btnBomb, 2, DARKGRAY);
+    if (hovBomb && IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && bombAvail && state.serverState == Protocol::UserState::YourTurn) {
+        m_abilityMode = bombActive ? AbilityMode::None : AbilityMode::BombingRun;
+        AudioManager::instance().playSFX(SoundEffect::ButtonClick);
+    }
+
+    // Orientation Indicator (for both Torpedo and Bombing Run)
+    if (torpActive || bombActive) {
         const char* rotStr = (m_abilityOrientation == Orientation::Horizontal) ? "[R] Horizontal" : "[R] Vertical";
-        DrawText(rotStr, btnTorpedo.x + btnW + 20, barY + 10, 18, SKYBLUE);
+        DrawText(rotStr, startX + totalW + 20, barY + 10, 18, SKYBLUE);
     }
 
     // --- MENU BUTTON ---

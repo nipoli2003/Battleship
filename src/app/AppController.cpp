@@ -3,6 +3,8 @@
 #include "network/Client.hpp"
 #include <iostream>
 #include <variant>
+// #include <chrono>
+// #include <thread>
 
 AppController::AppController()
     : m_net(std::make_unique<NetworkClient>()) {}
@@ -94,6 +96,10 @@ void AppController::handleNetEvent(const Network::NetEvent& ev) {
             m_state.abilityCharges = msg.ability_charges;
             m_state.abilityLogs    = msg.abilityLogs;
 
+            m_state.lastAbilityType = msg.lastAbilityType;
+            m_state.lastAbilityX = msg.lastAbilityX;
+            m_state.lastAbilityY = msg.lastAbilityY;
+
             if (firstUpdate)
                 onEnterGame();
         }
@@ -179,7 +185,12 @@ void AppController::sendAbility(int abilityType, int x, int y, int orientation) 
     if (abilityType == static_cast<int>(Protocol::AbilityType::Sonar)) {
         AudioManager::instance().playSFX(SoundEffect::Sonar);
     } else if (abilityType == static_cast<int>(Protocol::AbilityType::Torpedo)) {
+        // To be tested
+        // AudioManager::instance().playSFX(SoundEffect::Torpedo);
+        // std::this_thread::sleep_for(std::chrono::milliseconds(1000));
         AudioManager::instance().playSFX(SoundEffect::FireSalvo);
+    } else if (abilityType == static_cast<int>(Protocol::AbilityType::BombingRun)) {
+        AudioManager::instance().playSFX(SoundEffect::BombingRun);
     }
 
     std::cerr << "[app] sending ability " << abilityType << " at (" << x << ", " << y << ") orient=" << orientation << "\n";

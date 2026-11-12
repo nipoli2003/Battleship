@@ -54,7 +54,7 @@ class GraphicalView : public IView {
     void randomizeLocalFleet();
 
     // --- ABILITY UI STATE ---
-    enum class AbilityMode { None, Sonar, Torpedo };
+    enum class AbilityMode { None, Sonar, Torpedo, BombingRun };
     AbilityMode m_abilityMode{AbilityMode::None};
     Orientation m_abilityOrientation{Orientation::Horizontal};
 

@@ -70,12 +70,12 @@ struct FireShot {
 enum class AbilityType : int {
     Sonar = 0,        // Destroyer
     Torpedo = 1,      // Submarine
-    // BombingRun = 2    // Carrier
+    BombingRun = 2    // Carrier
 };
 
 inline constexpr int ABILITY_COUNT = 3;
 
-inline constexpr int START_CHARGES[ABILITY_COUNT] = {1, 1,1};
+inline constexpr int START_CHARGES[ABILITY_COUNT] = {1, 1, 3};
 
 inline constexpr int TORPEDO_RANGE = 10; // SIZE = 10
 
@@ -124,6 +124,11 @@ struct StateUpdate {
 
     int lastShooter{-1};   // -1 = no shot yet
     int lastResult{-1};    // cast from AttackResult
+
+    int lastAbilityType{-1};
+    int lastAbilityX{-1};
+    int lastAbilityY{-1};
+    int lastAbilityResult{0};
 };
 
 struct GameOver {

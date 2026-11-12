@@ -27,4 +27,9 @@ struct GameSnapshot {
     // from its own point of view (-1 = no shot yet)
     int lastShooter{-1};
     AttackResult lastResult{AttackResult::Invalid};
+
+    int lastAbilityType{-1};
+    int lastAbilityX{-1};
+    int lastAbilityY{-1};
+    int lastAbilityResult{0};
 };

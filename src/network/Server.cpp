@@ -272,6 +272,7 @@ void GameServer::handleLine(GameSession &session, ClientPtr clients[2], int play
         switch (static_cast<Protocol::AbilityType>(msg.abilityType)) {
             case Protocol::AbilityType::Sonar:   abilityName = "Sonar";   break;
             case Protocol::AbilityType::Torpedo: abilityName = "Torpedo"; break;
+            case Protocol::AbilityType::BombingRun: abilityName = "Bombing Run"; break;
         }
         LOG_SRV_GAME("[session] Player ", playerIdx, " used ", abilityName, " at (", msg.x, ", ", msg.y, ") -> result=", result);
 
