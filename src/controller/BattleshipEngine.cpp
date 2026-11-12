@@ -1,4 +1,5 @@
 #include "controller/BattleshipEngine.hpp"
+#include <random>
 
 BattleshipEngine::BattleshipEngine() {
     startNewGame();
@@ -35,8 +36,12 @@ bool BattleshipEngine::placeShips(int playerIdx, const FleetPlacement &ships) {
 }
 
 void BattleshipEngine::finishPlacement() {
-    m_snapshot.state = MatchState::PlayerTurn; // player 0 always goes first
-    m_snapshot.statusMessage = "Battle stations! Player 0 fires first.";
+    thread_local std::mt19937 rng{std::random_device{}()};
+    std::uniform_int_distribution<int> choosePlayer(0, 1);
+
+    m_snapshot.state = choosePlayer(rng) == 0
+                           ? MatchState::PlayerTurn
+                           : MatchState::OpponentTurn;
 }
 
 bool BattleshipEngine::fire(int playerIdx, Coordinate target) {
