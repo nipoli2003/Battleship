@@ -79,6 +79,8 @@ inline constexpr int START_CHARGES[ABILITY_COUNT] = {1, 1, 3};
 
 inline constexpr int TORPEDO_RANGE = 10; // SIZE = 10
 
+inline constexpr int BOMBINGRUN_RANGE = 3;
+
 struct UseAbility {
     MsgType type{USE_ABILITY};
     int abilityType{};  // Protocol::AbilityType as int

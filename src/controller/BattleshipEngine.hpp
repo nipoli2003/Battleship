@@ -22,6 +22,7 @@ class BattleshipEngine {
     [[nodiscard]] int getAbilityCharges(int playerIdx, Protocol::AbilityType ability) const noexcept { return m_abilities[playerIdx][static_cast<int>(ability)]; }
     [[nodiscard]] std::string getSonarLog(int playerIdx) const { return m_sonarLog[playerIdx]; }
     [[nodiscard]] std::string getTorpedoLog(int playerIdx) const { return m_torpedoLog[playerIdx]; }
+    [[nodiscard]] std::string getBombingRunLog(int playerIdx) const { return m_bombingRunLog[playerIdx]; }
 
     // Combat phase methods
     bool fire(int playerIdx, Coordinate target);
@@ -45,5 +46,4 @@ class BattleshipEngine {
     int m_abilities[2][Protocol::ABILITY_COUNT]{};
     std::string m_sonarLog[2];
     std::string m_torpedoLog[2];
-    std::string m_BombingRunLog[2];
 };

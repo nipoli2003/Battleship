@@ -1,4 +1,5 @@
 #include "controller/BattleshipEngine.hpp"
+#include "model/Board.hpp"
 #include "model/Protocol.hpp"
 #include <string>
 
@@ -218,7 +219,7 @@ int BattleshipEngine::fireTorpedo(int playerIdx, Coordinate target, Orientation 
     m_snapshot.lastAbilityResult = hit ? 1 : 0; // Torpedo returns 1 for hit, 0 for miss
 
     m_torpedoLog[playerIdx] = "Torpedo @ (" + std::to_string(target.x) + "," + std::to_string(target.y) +
-                                "):" + (hit ? "hit at (" + std::to_string(impact.x) + "," + std::to_string(impact.y) +
+                                "): " + (hit ? "hit at (" + std::to_string(impact.x) + "," + std::to_string(impact.y) +
                                 "). " :  "no hits. ");
                             
     if (enemy.allShipsSunk()) {
