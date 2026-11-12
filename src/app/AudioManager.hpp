@@ -15,23 +15,23 @@
  * @brief Available sound effects for gameplay and UI feedback.
  */
 enum class SoundEffect {
-    FireSalvo,    ///< Main cannon shot sound.
-    Hit,          ///< Ship hit feedback.
-    Miss,         ///< Missed shot feedback.
-    ShipSunk,     ///< Ship sunk announcement.
-    AbilityPing,  ///< Ability activation sound.
-    ButtonClick,  ///< User interface click.
-    PlaneFlyby    ///< Ambient plane flyby effect.
+    FireSalvo,    
+    Hit,     
+    Miss,       
+    ShipSunk,     
+    AbilityPing,  
+    ButtonClick,
+    PlaneFlyby    
 };
 
 /**
  * @brief Background music tracks available in the game.
  */
 enum class MusicTrack {
-    MainTheme, ///< Main menu theme.
-    BattleTheme, ///< Combat theme.
-    Victory,    ///< Victory screen track.
-    Defeat      ///< Defeat screen track.
+    MainTheme, 
+    BattleTheme,
+    Victory,    
+    Defeat      
 };
 
 /**
@@ -112,14 +112,10 @@ public:
     void loadMusicSafe(MusicTrack id, const std::string& path);
 
 private:
-    /**
-     * @brief Constructs the audio manager.
-     */
+    
     AudioManager();
 
-    /**
-     * @brief Destroys the audio manager.
-     */
+    
     ~AudioManager() = default;
 
     bool m_initialized{false}; ///< Whether the audio subsystem is initialized.

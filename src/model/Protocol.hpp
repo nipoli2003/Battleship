@@ -19,18 +19,18 @@ namespace Protocol {
  */
 enum MsgType : int {
     // client -> server
-    CREATE_LOBBY = 0, ///< Request creation of a new lobby.
-    JOIN_LOBBY,       ///< Request joining an existing lobby.
-    PLACE_SHIPS,     ///< Send a fleet placement payload.
-    FIRE_SHOT,       ///< Fire a shot at a target coordinate.
-    USE_ABILITY,     ///< Trigger a special ability.
+    CREATE_LOBBY = 0, 
+    JOIN_LOBBY,       
+    PLACE_SHIPS,     
+    FIRE_SHOT,       
+    USE_ABILITY,
     // server -> client
-    LOBBY_CODE,      ///< Server returns a newly generated lobby code.
-    LOBBY_JOINED,    ///< Server confirms a successful join.
-    LOBBY_ERROR,     ///< Server reports a lobby-related error.
-    STATE_UPDATE,    ///< Server sends the current game snapshot.
-    GAME_OVER,       ///< Server reports the result of the match.
-    SERVER_ERROR     ///< Generic server error payload.
+    LOBBY_CODE,      
+    LOBBY_JOINED,    
+    LOBBY_ERROR,     
+    STATE_UPDATE,    
+    GAME_OVER,       
+    SERVER_ERROR 
 };
 
 /**

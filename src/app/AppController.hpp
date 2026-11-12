@@ -41,14 +41,10 @@ class AppController {
     void run();
 
     // --- Called by GraphicalView (main thread only) ---
-    /**
-     * @brief Returns the app to the title/menu screen.
-     */
+    
     void goToMenu();
 
-    /**
-     * @brief Opens the lobby creation/join UI screen.
-     */
+    
     void openLobbySetup();
 
     /**
@@ -108,9 +104,7 @@ class AppController {
     void setSFXVolume(int volume);
 
   private:
-    /**
-     * @brief Application runtime mode.
-     */
+    
     enum class Mode { Online, Local };
 
     /**

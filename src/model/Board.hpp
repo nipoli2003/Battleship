@@ -34,24 +34,24 @@ struct Coordinate {
  * @brief State of a single cell on the board.
  */
 enum class CellState {
-    Empty,      ///< No ship and no shot fired here.
-    Hit,        ///< Occupied cell that has been hit.
-    Miss,       ///< Empty cell that was attacked.
-    Carrier,    ///< Occupied by a carrier.
-    Battleship, ///< Occupied by a battleship.
-    Cruiser,    ///< Occupied by a cruiser.
-    Submarine,  ///< Occupied by a submarine.
-    Destroyer   ///< Occupied by a destroyer.
+    Empty,     
+    Hit,        
+    Miss,    
+    Carrier, 
+    Battleship, 
+    Cruiser, 
+    Submarine, 
+    Destroyer  
 };
 
 /**
  * @brief Result of an attack on a target cell.
  */
 enum class AttackResult {
-    Miss,    ///< The shot missed all ships.
-    Hit,     ///< A ship was hit but not sunk.
-    Sunk,    ///< The shot sank a ship.
-    Invalid  ///< Target was outside the board or invalid.
+    Miss,    
+    Hit,     
+    Sunk,
+    Invalid  
 };
 
 /**
