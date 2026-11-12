@@ -6,7 +6,11 @@
 
 void GameServer::run(int port) {
     sockpp::tcp_acceptor acc;
-    acc.open(sockpp::inet_address(port), 4, SO_REUSEPORT);
+    #ifdef SO_REUSEPORT
+        acc.open(sockpp::inet_address(port), 4, SO_REUSEPORT);
+    #else
+        acc.open(sockpp::inet_address(port), 4, SO_REUSEADDR); //for windows support
+    #endif
     if (!acc) {
         // TODO: how to get error
         std::cerr << "[server] error: could not create tcp acceptor\n";

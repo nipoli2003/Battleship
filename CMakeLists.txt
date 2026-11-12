@@ -81,6 +81,20 @@ if(APPLE)
     )
 endif()
 
+if(WIN32)
+    # raylib and windows.h (included by sockpp through winsock2.h) declare
+    # clashing names (Rectangle, CloseWindow, ShowCursor, DrawText, ...).
+    # These macros strip the conflicting parts of the Windows headers.
+    target_compile_definitions(battleship PRIVATE
+        WIN32_LEAN_AND_MEAN
+        NOGDI
+        NOUSER
+        NOMINMAX
+    )
+    # Winsock library required by sockpp on Windows
+    target_link_libraries(battleship PRIVATE ws2_32)
+endif()
+
 # ---------------------------------------------------------
 # Relay Server Executable
 # ---------------------------------------------------------
@@ -92,6 +106,17 @@ add_executable(battleship_server
 
 target_include_directories(battleship_server PRIVATE src)
 target_link_libraries(battleship_server PRIVATE battleship_core sockpp-static pthread)
+
+if(WIN32)
+    # NOGDI: wingdi.h defines a macro named ERROR that breaks Log::Level
+    target_compile_definitions(battleship_server PRIVATE
+        WIN32_LEAN_AND_MEAN
+        NOGDI
+        NOMINMAX
+    )
+    # Winsock library required by sockpp on Windows
+    target_link_libraries(battleship_server PRIVATE ws2_32)
+endif()
 
 # ---------------------------------------------------------
 # Unit Testing
