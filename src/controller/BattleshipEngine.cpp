@@ -70,6 +70,7 @@ bool BattleshipEngine::fire(int playerIdx, Coordinate target) {
 
     m_snapshot.lastShooter = playerIdx;
     m_snapshot.lastResult = result;
+    m_snapshot.lastAbilityType = -1;
 
     if (m_boards[victimIdx].allShipsSunk()) {
         m_snapshot.state = (playerIdx == 0) ? MatchState::Victory : MatchState::Defeat;
