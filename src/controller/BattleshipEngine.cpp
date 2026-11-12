@@ -72,6 +72,8 @@ bool BattleshipEngine::fire(int playerIdx, Coordinate target) {
     m_snapshot.lastResult = result;
     m_snapshot.lastAbilityType = -1;
 
+    m_snapshot.lastAbilityType = -1;
+
     if (m_boards[victimIdx].allShipsSunk()) {
         m_snapshot.state = (playerIdx == 0) ? MatchState::Victory : MatchState::Defeat;
         m_snapshot.statusMessage = "Game over!";
@@ -124,6 +126,9 @@ int BattleshipEngine::useAbility(int playerIdx, Protocol::AbilityType ability, C
     if(ability == Protocol::AbilityType::Sonar){
         // Requires active destroyer
         if(!hasActiveShip(playerIdx, ShipType::Destroyer)) return -1;
+        if (target.x < 1 || target.x > Board::SIZE - 2 || target.y < 1 || target.y > Board::SIZE - 2) {
+            return -1; 
+        }
         return useSonar(playerIdx, target);
     }
 

@@ -777,9 +777,18 @@ void GraphicalView::renderGame(const ClientState& state) {
     // 1. Sonar Button
     Rectangle btnSonar{startX, (float)barY, btnW, btnH};
     bool hovSonar = !m_showSettingsModal && CheckCollisionPointRec(getVirtualMousePosition(), btnSonar);
+    
+    int sonarCharges = static_cast<int>(state.abilityCharges.size()) > 0 ? state.abilityCharges[0] : 0;
     bool sonarAvail = abilityAvailable(state, Protocol::AbilityType::Sonar);
     bool sonarActive = (m_abilityMode == AbilityMode::Sonar);
-    drawButton(btnSonar, sonarAvail ? (sonarActive ? "Cancel Sonar" : "[SPACE] Sonar") : "Sonar (Used)", hovSonar);
+    
+    const char* sonarText = "[SPACE] Sonar";
+    if (sonarActive) sonarText = "Cancel Sonar";
+    else if (sonarCharges == 0) sonarText = "Sonar (Used)";
+    else if (!sonarAvail) sonarText = "Destroyer Sunk";
+    
+    drawButton(btnSonar, sonarText, hovSonar);
+
     if (!sonarAvail) DrawRectangleLinesEx(btnSonar, 2, DARKGRAY);
     if (hovSonar && IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && sonarAvail && state.serverState == Protocol::UserState::YourTurn) {
         m_abilityMode = sonarActive ? AbilityMode::None : AbilityMode::Sonar;
@@ -789,9 +798,18 @@ void GraphicalView::renderGame(const ClientState& state) {
     // 2. Torpedo Button
     Rectangle btnTorpedo{startX + btnW + gap, (float)barY, btnW, btnH};
     bool hovTorpedo = !m_showSettingsModal && CheckCollisionPointRec(getVirtualMousePosition(), btnTorpedo);
+    
+    int torpCharges = static_cast<int>(state.abilityCharges.size()) > 1 ? state.abilityCharges[1] : 0;
     bool torpAvail = abilityAvailable(state, Protocol::AbilityType::Torpedo);
     bool torpActive = (m_abilityMode == AbilityMode::Torpedo);
-    drawButton(btnTorpedo, torpAvail ? (torpActive ? "Cancel Torpedo" : "[T] Torpedo") : "Torpedo (Used)", hovTorpedo);
+    
+    const char* torpText = "[T] Torpedo";
+    if (torpActive) torpText = "Cancel Torpedo";
+    else if (torpCharges == 0) torpText = "Torpedo (Used)";
+    else if (!torpAvail) torpText = "Submarine Sunk";
+    
+    drawButton(btnTorpedo, torpText, hovTorpedo);
+
     if (!torpAvail) DrawRectangleLinesEx(btnTorpedo, 2, DARKGRAY);
     if (hovTorpedo && IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && torpAvail && state.serverState == Protocol::UserState::YourTurn) {
         m_abilityMode = torpActive ? AbilityMode::None : AbilityMode::Torpedo;
@@ -801,9 +819,18 @@ void GraphicalView::renderGame(const ClientState& state) {
     // 3. Bombing Run Button (NEW)
     Rectangle btnBomb{startX + (btnW + gap) * 2, (float)barY, btnW, btnH};
     bool hovBomb = !m_showSettingsModal && CheckCollisionPointRec(getVirtualMousePosition(), btnBomb);
+    
+    int bombCharges = static_cast<int>(state.abilityCharges.size()) > 2 ? state.abilityCharges[2] : 0;
     bool bombAvail = abilityAvailable(state, Protocol::AbilityType::BombingRun);
     bool bombActive = (m_abilityMode == AbilityMode::BombingRun);
-    drawButton(btnBomb, bombAvail ? (bombActive ? "Cancel Bombing" : "[B] Bombing") : "Bombing (Used)", hovBomb);
+    
+    const char* bombText = "[B] Bombing";
+    if (bombActive) bombText = "Cancel Bombing";
+    else if (bombCharges == 0) bombText = "Bombing (Used)";
+    else if (!bombAvail) bombText = "Carrier Sunk";
+    
+    drawButton(btnBomb, bombText, hovBomb);
+
     if (!bombAvail) DrawRectangleLinesEx(btnBomb, 2, DARKGRAY);
     if (hovBomb && IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && bombAvail && state.serverState == Protocol::UserState::YourTurn) {
         m_abilityMode = bombActive ? AbilityMode::None : AbilityMode::BombingRun;
