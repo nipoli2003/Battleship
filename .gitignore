@@ -9,3 +9,6 @@ compile_commands.json
 !.vscode/settings.json
 !.vscode/tasks.json
 !.vscode/launch.json
+
+.VSCodeCounter
+assets/
