@@ -30,6 +30,19 @@ struct ClientState {
     // --- Settings ---
     int musicVolume = 70;
     int sfxVolume = 80;
+
+    std::vector<int> abilityCharges;
+    int localPlayerIdx{-1};   // set when LobbyJoined arrives
+    int lastShooterSeen{-1};  // for SFX diffing
+    int lastResultSeen{-1};
+    int turnNumberSeen{-1};
+
+    int lastAbilityType{-1};
+    int lastAbilityX{-1};
+    int lastAbilityY{-1};
+
+    // --- Side Panel helper ---
+    std::vector<std::string> abilityLogs;
 };
 
 #endif
