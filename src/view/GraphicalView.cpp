@@ -770,11 +770,22 @@ void GraphicalView::renderGame(const ClientState& state) {
     float btnH = 40.0f;
     float gap = 20.0f;
     
-    // Calculate total width to center it (now 3 buttons)
     float totalW = (btnW * 3) + (gap * 2);
     float startX = (VIRTUAL_WIDTH - totalW) / 2.0f;
+
+    // Helper to check if a ship is still alive on the board (not hit/sunk)
+    auto isShipAlive = [&](CellState shipCell) {
+        for (int val : state.yourBoard) {
+            if (val == static_cast<int>(shipCell)) return true;
+        }
+        return false;
+    };
+
+    bool destroyerAlive = isShipAlive(CellState::Destroyer);
+    bool submarineAlive = isShipAlive(CellState::Submarine);
+    bool carrierAlive = isShipAlive(CellState::Carrier);
     
-    // 1. Sonar Button
+    // ================= SONAR =================
     Rectangle btnSonar{startX, (float)barY, btnW, btnH};
     bool hovSonar = !m_showSettingsModal && CheckCollisionPointRec(getVirtualMousePosition(), btnSonar);
     
@@ -782,20 +793,32 @@ void GraphicalView::renderGame(const ClientState& state) {
     bool sonarAvail = abilityAvailable(state, Protocol::AbilityType::Sonar);
     bool sonarActive = (m_abilityMode == AbilityMode::Sonar);
     
-    const char* sonarText = "[SPACE] Sonar";
-    if (sonarActive) sonarText = "Cancel Sonar";
-    else if (sonarCharges == 0) sonarText = "Sonar (Used)";
-    else if (!sonarAvail) sonarText = "Destroyer Sunk";
-    
+    // Draw Button
+    const char* sonarText = sonarActive ? "Cancel Sonar" : "[SPACE] Sonar";
     drawButton(btnSonar, sonarText, hovSonar);
+    
+    // Draw Subtext (Sunk > Used > Remaining)
+    std::string sonarSub = "";
+    Color sonarSubColor = LIGHTGRAY;
+    if (!destroyerAlive) {
+        sonarSub = "Destroyer Sunk";
+        sonarSubColor = RED;
+        DrawRectangleLinesEx(btnSonar, 2, RED);
+    } else if (sonarCharges == 0) {
+        sonarSub = "Used";
+        sonarSubColor = DARKGRAY;
+        DrawRectangleLinesEx(btnSonar, 2, DARKGRAY);
+    } else {
+        sonarSub = "Remaining: " + std::to_string(sonarCharges);
+    }
+    DrawText(sonarSub.c_str(), (int)(btnSonar.x + (btnSonar.width - MeasureText(sonarSub.c_str(), 16)) / 2), barY + btnH + 5, 16, sonarSubColor);
 
-    if (!sonarAvail) DrawRectangleLinesEx(btnSonar, 2, DARKGRAY);
     if (hovSonar && IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && sonarAvail && state.serverState == Protocol::UserState::YourTurn) {
         m_abilityMode = sonarActive ? AbilityMode::None : AbilityMode::Sonar;
         AudioManager::instance().playSFX(SoundEffect::ButtonClick);
     }
 
-    // 2. Torpedo Button
+    // ================= TORPEDO =================
     Rectangle btnTorpedo{startX + btnW + gap, (float)barY, btnW, btnH};
     bool hovTorpedo = !m_showSettingsModal && CheckCollisionPointRec(getVirtualMousePosition(), btnTorpedo);
     
@@ -803,20 +826,32 @@ void GraphicalView::renderGame(const ClientState& state) {
     bool torpAvail = abilityAvailable(state, Protocol::AbilityType::Torpedo);
     bool torpActive = (m_abilityMode == AbilityMode::Torpedo);
     
-    const char* torpText = "[T] Torpedo";
-    if (torpActive) torpText = "Cancel Torpedo";
-    else if (torpCharges == 0) torpText = "Torpedo (Used)";
-    else if (!torpAvail) torpText = "Submarine Sunk";
-    
+    // Draw Button
+    const char* torpText = torpActive ? "Cancel Torpedo" : "[T] Torpedo";
     drawButton(btnTorpedo, torpText, hovTorpedo);
+    
+    // Draw Subtext (Sunk > Used > Remaining)
+    std::string torpSub = "";
+    Color torpSubColor = LIGHTGRAY;
+    if (!submarineAlive) {
+        torpSub = "Submarine Sunk";
+        torpSubColor = RED;
+        DrawRectangleLinesEx(btnTorpedo, 2, RED);
+    } else if (torpCharges == 0) {
+        torpSub = "Used";
+        torpSubColor = DARKGRAY;
+        DrawRectangleLinesEx(btnTorpedo, 2, DARKGRAY);
+    } else {
+        torpSub = "Remaining: " + std::to_string(torpCharges);
+    }
+    DrawText(torpSub.c_str(), (int)(btnTorpedo.x + (btnTorpedo.width - MeasureText(torpSub.c_str(), 16)) / 2), barY + btnH + 5, 16, torpSubColor);
 
-    if (!torpAvail) DrawRectangleLinesEx(btnTorpedo, 2, DARKGRAY);
     if (hovTorpedo && IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && torpAvail && state.serverState == Protocol::UserState::YourTurn) {
         m_abilityMode = torpActive ? AbilityMode::None : AbilityMode::Torpedo;
         AudioManager::instance().playSFX(SoundEffect::ButtonClick);
     }
 
-    // 3. Bombing Run Button (NEW)
+    // ================= BOMBING RUN =================
     Rectangle btnBomb{startX + (btnW + gap) * 2, (float)barY, btnW, btnH};
     bool hovBomb = !m_showSettingsModal && CheckCollisionPointRec(getVirtualMousePosition(), btnBomb);
     
@@ -824,20 +859,32 @@ void GraphicalView::renderGame(const ClientState& state) {
     bool bombAvail = abilityAvailable(state, Protocol::AbilityType::BombingRun);
     bool bombActive = (m_abilityMode == AbilityMode::BombingRun);
     
-    const char* bombText = "[B] Bombing";
-    if (bombActive) bombText = "Cancel Bombing";
-    else if (bombCharges == 0) bombText = "Bombing (Used)";
-    else if (!bombAvail) bombText = "Carrier Sunk";
-    
+    // Draw Button
+    const char* bombText = bombActive ? "Cancel Bombing" : "[B] Bombing";
     drawButton(btnBomb, bombText, hovBomb);
+    
+    // Draw Subtext (Sunk > Used > Remaining)
+    std::string bombSub = "";
+    Color bombSubColor = LIGHTGRAY;
+    if (!carrierAlive) {
+        bombSub = "Carrier Sunk";
+        bombSubColor = RED;
+        DrawRectangleLinesEx(btnBomb, 2, RED);
+    } else if (bombCharges == 0) {
+        bombSub = "Used";
+        bombSubColor = DARKGRAY;
+        DrawRectangleLinesEx(btnBomb, 2, DARKGRAY);
+    } else {
+        bombSub = "Remaining: " + std::to_string(bombCharges);
+    }
+    DrawText(bombSub.c_str(), (int)(btnBomb.x + (btnBomb.width - MeasureText(bombSub.c_str(), 16)) / 2), barY + btnH + 5, 16, bombSubColor);
 
-    if (!bombAvail) DrawRectangleLinesEx(btnBomb, 2, DARKGRAY);
     if (hovBomb && IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && bombAvail && state.serverState == Protocol::UserState::YourTurn) {
         m_abilityMode = bombActive ? AbilityMode::None : AbilityMode::BombingRun;
         AudioManager::instance().playSFX(SoundEffect::ButtonClick);
     }
 
-    // Orientation Indicator (for both Torpedo and Bombing Run)
+    // Orientation Indicator
     if (torpActive || bombActive) {
         const char* rotStr = (m_abilityOrientation == Orientation::Horizontal) ? "[R] Horizontal" : "[R] Vertical";
         DrawText(rotStr, startX + totalW + 20, barY + 10, 18, SKYBLUE);
