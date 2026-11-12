@@ -46,4 +46,5 @@ class BattleshipEngine {
     int m_abilities[2][Protocol::ABILITY_COUNT]{};
     std::string m_sonarLog[2];
     std::string m_torpedoLog[2];
+    std::string m_bombingRunLog[2];
 };

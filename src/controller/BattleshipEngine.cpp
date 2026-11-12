@@ -22,8 +22,8 @@ void BattleshipEngine::startNewGame() {
     m_sonarLog[1].clear();   
     m_torpedoLog[0].clear();
     m_torpedoLog[1].clear();
-    m_BombingRunLog[0].clear();
-    m_BombingRunLog[1].clear();
+    m_bombingRunLog[0].clear();
+    m_bombingRunLog[1].clear();
 
     m_snapshot = GameSnapshot{};
     m_snapshot.state = MatchState::PlacementPhase;
