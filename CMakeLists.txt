@@ -52,7 +52,9 @@ add_library(battleship_core STATIC
 target_include_directories(battleship_core PUBLIC src)
 target_link_libraries(battleship_core PUBLIC glaze::glaze)
 
-target_compile_options(battleship_core PRIVATE -fbracket-depth=1024)
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    target_compile_options(battleship_core PRIVATE -fbracket-depth=1024)
+endif()
 
 # Force C++20 and block transitive C++23 elevation
 set_target_properties(battleship_core PROPERTIES

@@ -209,14 +209,6 @@ class GraphicalView : public IView {
     // Helper to check if an ability is available based on server updates
     bool abilityAvailable(const ClientState& state, Protocol::AbilityType t) const;
 
-    // --- ABILITY UI STATE ---
-    enum class AbilityMode { None, Sonar, Torpedo, BombingRun };
-    AbilityMode m_abilityMode{AbilityMode::None};
-    Orientation m_abilityOrientation{Orientation::Horizontal};
-
-    // Helper to check if an ability is available based on server updates
-    bool abilityAvailable(const ClientState& state, Protocol::AbilityType t) const;
-
     AppController* m_owner{nullptr}; ///< Owning app controller.
 
     // --- Settings (main thread only) ---

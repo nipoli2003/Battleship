@@ -3,8 +3,8 @@
 #include "network/Client.hpp"
 #include <iostream>
 #include <variant>
-// #include <chrono>
-// #include <thread>
+#include <chrono>
+#include <thread>
 
 AppController::AppController()
     : m_net(std::make_unique<NetworkClient>()) {}

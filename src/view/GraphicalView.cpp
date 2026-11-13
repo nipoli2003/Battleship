@@ -7,13 +7,7 @@
 #include <optional>
 #include <random>
 #include <string>
-
-const std::vector<ShipType> GraphicalView::SHIP_ORDER = {
-    ShipType::Carrier,
-    ShipType::Battleship,
-    ShipType::Cruiser,
-    ShipType::Submarine,
-    ShipType::Destroyer};
+#include <thread>
 
 GraphicalView::GraphicalView() = default;
 
