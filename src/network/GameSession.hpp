@@ -1,3 +1,8 @@
+/**
+ * @file GameSession.hpp
+ * @brief Wrapper around the game engine for a single multiplayer match.
+ */
+
 #ifndef GAME_SESSION_HPP
 #define GAME_SESSION_HPP
 
@@ -5,33 +10,64 @@
 #include "model/Protocol.hpp"
 #include "model/Ship.hpp"
 
-// game-state wrapper for GameServer
+/**
+ * @brief Server-side game state for one match session.
+ *
+ * This class owns the underlying BattleshipEngine and exposes the actions
+ * needed by the server to accept placements, resolve turns, and report state.
+ */
 class GameSession {
   public:
+    /**
+     * @brief Creates an empty game session.
+     */
     GameSession() = default;
 
-    // Returns false if placement was already submitted or ships are invalid.
+    /**
+     * @brief Submits a player’s fleet placement for the current match.
+     * @param playerIdx Index of the player submitting the ships.
+     * @param ships Placement data for the ship layout.
+     * @return true if the placement was accepted, false if already submitted or invalid.
+     */
     bool placeShips(int playerIdx, const std::vector<Protocol::ShipPlacement> &ships);
+
+    /**
+     * @brief Checks whether both players are ready to begin battle.
+     * @return true when both players have submitted valid fleets.
+     */
     bool bothReady() const noexcept { return m_engine.bothReady(); }
 
-    // returns false if it's not this player's turn or the shot is invalid.
+    /**
+     * @brief Fires a shot for the specified player.
+     * @param playerIdx Index of the player taking the shot.
+     * @param coord Target coordinate.
+     * @return true if the shot was legal and processed, false otherwise.
+     */
     bool fire(int playerIdx, Coordinate coord);
 
+    /**
+     * @brief Checks whether the match has ended.
+     * @return true if the current player has won or lost the match.
+     */
     bool isOver() const noexcept {
         auto s = m_engine.getSnapshot().state;
         return s == MatchState::Victory || s == MatchState::Defeat;
     }
 
-    // builds a tailored StateUpdate for playerIdx:
-    // - yourBoard shows ships; enemyBoard masks present ships as Empty.
-    // - Victory/Defeat are flipped correctly per perspective.
-    Protocol::StateUpdate buildSnapshot(int playerIdx) const;
+    /**
+     * @brief Builds the state snapshot visible to one player.
+     * @param playerIdx Player whose perspective should be encoded.
+     * @return Snapshot containing only that player's view of the match.
+     */
+    inline Protocol::StateUpdate buildSnapshot(int playerIdx) const {
+        return m_engine.buildPlayerSnapshot(playerIdx);
+    }
 
     int useAbility(int playerIdx, Protocol::AbilityType ability, Coordinate target, Orientation orientation = Orientation::Horizontal);
     [[nodiscard]] bool hasAbility(int playerIdx, Protocol::AbilityType ability) const noexcept;
 
   private:
-    BattleshipEngine m_engine;
+    BattleshipEngine m_engine; ///< Core match engine backing this session.
 };
 
 #endif

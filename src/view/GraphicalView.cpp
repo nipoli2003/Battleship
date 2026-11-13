@@ -7,8 +7,6 @@
 #include <optional>
 #include <random>
 #include <string>
-#include <chrono>
-#include <thread>
 
 const std::vector<ShipType> GraphicalView::SHIP_ORDER = {
     ShipType::Carrier,
@@ -185,6 +183,52 @@ void GraphicalView::renderSettingsModal(const ClientState& state) {
     }
 }
 
+void GraphicalView::renderExitConfirmModal() {
+    Vector2 mouse = getVirtualMousePosition();
+
+    DrawRectangle(0, 0, VIRTUAL_WIDTH, VIRTUAL_HEIGHT, Color{0, 0, 0, 190});
+
+    float modalW = 460.0f;
+    float modalH = 200.0f;
+    float modalX = (VIRTUAL_WIDTH - modalW) / 2.0f;
+    float modalY = (VIRTUAL_HEIGHT - modalH) / 2.0f;
+    Rectangle modalRec{modalX, modalY, modalW, modalH};
+
+    DrawRectangleRec(modalRec, Color{20, 32, 45, 255});
+    DrawRectangleLinesEx(modalRec, 2, SKYBLUE);
+
+    const char* question = "Are you sure you want to quit?";
+    int questionSize = 24;
+    DrawText(question, modalX + (modalW - MeasureText(question, questionSize)) / 2.0f, modalY + 40.0f, questionSize, RAYWHITE);
+
+    float btnW = 140.0f, btnH = 40.0f, gap = 30.0f;
+    float btnY = modalY + modalH - 70.0f;
+    Rectangle btnYes{modalX + modalW / 2.0f - btnW - gap / 2.0f, btnY, btnW, btnH};
+    Rectangle btnNo{modalX + modalW / 2.0f + gap / 2.0f, btnY, btnW, btnH};
+
+    bool hovYes = CheckCollisionPointRec(mouse, btnYes);
+    bool hovNo = CheckCollisionPointRec(mouse, btnNo);
+
+    // Yes: red
+    DrawRectangleRec(btnYes, hovYes ? Color{200, 50, 50, 255} : Color{150, 30, 30, 255});
+    DrawRectangleLinesEx(btnYes, 2, RED);
+    DrawText("Yes", btnYes.x + (btnW - MeasureText("Yes", 20)) / 2.0f, btnYes.y + (btnH - 20) / 2.0f, 20, RAYWHITE);
+
+    // No: white
+    DrawRectangleRec(btnNo, hovNo ? WHITE : RAYWHITE);
+    DrawRectangleLinesEx(btnNo, 2, LIGHTGRAY);
+    DrawText("No", btnNo.x + (btnW - MeasureText("No", 20)) / 2.0f, btnNo.y + (btnH - 20) / 2.0f, 20, BLACK);
+
+    if (hovYes && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+        playClick();
+        m_showExitConfirm = false;
+        if (m_owner) m_owner->resetToMenu();
+    } else if ((hovNo && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) || IsKeyPressed(KEY_ESCAPE)) {
+        playClick();
+        m_showExitConfirm = false;
+    }
+}
+
 void GraphicalView::resetPlacementState() {
     m_localBoard.reset();
     m_pendingPlacements.clear();
@@ -230,6 +274,10 @@ void GraphicalView::render(const ClientState& state) {
     }
     m_prevScene = state.scene;
 
+    // Don't leave the quit popup open if we've left the game (e.g. opponent disconnected).
+    if (state.scene != AppScene::InGame)
+        m_showExitConfirm = false;
+
     BeginTextureMode(m_target);
     ClearBackground(Color{15, 25, 35, 255});
 
@@ -261,6 +309,10 @@ void GraphicalView::render(const ClientState& state) {
 
     if (m_showSettingsModal) {
         renderSettingsModal(state);
+    }
+
+    if (m_showExitConfirm) {
+        renderExitConfirmModal();
     }
 
     EndTextureMode();
@@ -368,7 +420,16 @@ void GraphicalView::renderMainMenu(const ClientState& state) {
         if (m_owner) m_owner->openLobbySetup();
     }
 
-    Rectangle btnExit{(VIRTUAL_WIDTH - bw) / 2.0f, by + 130.0f, bw, bh};
+    Rectangle btnBot{bx, by + 130.f, bw, bh};
+    bool hovBot = !m_showSettingsModal && CheckCollisionPointRec(mouse, btnBot);
+    drawButton(btnBot, "Play vs Bot", hovBot);
+    if (hovBot && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+        playClick();
+        if (m_owner)
+            m_owner->startLocalBotMatch();
+    }
+
+    Rectangle btnExit{(VIRTUAL_WIDTH - bw) / 2.0f, by + 195.0f, bw, bh};
     bool hovExit = !m_showSettingsModal && CheckCollisionPointRec(mouse, btnExit);
     drawButton(btnExit, "Exit Game", hovExit);
     if (hovExit && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
@@ -473,27 +534,14 @@ void GraphicalView::renderLobbyWait(const ClientState& state) {
 // ------------------------------------------------------------------ Board renderers
 
 void GraphicalView::randomizeLocalFleet() {
-    m_localBoard.reset();
-    m_pendingPlacements.clear();
-
     std::mt19937 rng{std::random_device{}()};
-    std::uniform_int_distribution<int> orientDist(0, 1);
-
-    for (auto type : SHIP_ORDER) {
-        bool placed = false;
-        for (int attempts = 0; !placed && attempts < 1000; ++attempts) {
-            auto orient = orientDist(rng) == 0 ? Orientation::Horizontal : Orientation::Vertical;
-            auto ship = std::make_shared<Ship>(type, orient);
-            const int len = ship->length();
-            int maxX = (orient == Orientation::Horizontal) ? Board::SIZE - len : Board::SIZE - 1;
-            int maxY = (orient == Orientation::Vertical)   ? Board::SIZE - len : Board::SIZE - 1;
-            int x = std::uniform_int_distribution<int>(0, maxX)(rng);
-            int y = std::uniform_int_distribution<int>(0, maxY)(rng);
-            if (m_localBoard.placeShip(ship, {x, y})) {
-                m_pendingPlacements.push_back({(int)type, x, y, orient == Orientation::Horizontal ? 0 : 1});
-                placed = true;
-            }
-        }
+    m_localBoard.reset();
+    auto placement = m_localBoard.generateRandomFleet(rng);   // resets internally
+    m_pendingPlacements.clear();
+    for (auto& [type, coordOrient] : placement) {
+        auto& [coord, orient] = coordOrient;
+        m_pendingPlacements.push_back({(int)type, coord.x, coord.y,
+                                       orient == Orientation::Horizontal ? 0 : 1});
     }
 }
 
@@ -513,6 +561,14 @@ void GraphicalView::drawLocalBoard(int startX, int startY, const Board& board) {
 }
 
 void GraphicalView::renderPlacement(const ClientState& state) {
+    Rectangle btnLeave{20.f, 20.f, 100.f, 35.f};
+    bool hovLeave = !m_showSettingsModal && !m_showExitConfirm && CheckCollisionPointRec(getVirtualMousePosition(), btnLeave);
+    drawButton(btnLeave, "< Menu", hovLeave);
+    if (hovLeave && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+        playClick();
+        m_showExitConfirm = true;
+    }
+
     if (m_placementSent) {
         const char* msg = "Fleet deployed — waiting for opponent...";
         DrawText(msg, (VIRTUAL_WIDTH - MeasureText(msg, 22)) / 2, VIRTUAL_HEIGHT / 2 - 11, 22, YELLOW);
@@ -527,8 +583,8 @@ void GraphicalView::renderPlacement(const ClientState& state) {
     DrawText("FLEET DEPLOYMENT", (VIRTUAL_WIDTH - MeasureText("FLEET DEPLOYMENT", 30)) / 2, 35, 30, SKYBLUE);
 
     std::optional<ShipType> currentType;
-    if (m_pendingPlacements.size() < SHIP_ORDER.size())
-        currentType = SHIP_ORDER[m_pendingPlacements.size()];
+    if (m_pendingPlacements.size() < standardFleet.size())
+        currentType = standardFleet[m_pendingPlacements.size()];
 
     if (currentType) {
         Ship tmp(*currentType, m_placementOrientation);
@@ -563,7 +619,7 @@ void GraphicalView::renderPlacement(const ClientState& state) {
                 if (cx < Board::SIZE && cy < Board::SIZE)
                     DrawRectangle(gx + cx * CELL_SIZE, gy + cy * CELL_SIZE, CELL_SIZE, CELL_SIZE, ghost);
             }
-            if (!m_showSettingsModal && IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && valid) {
+            if (!m_showSettingsModal && !m_showExitConfirm && IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && valid) {
                 auto ship = std::make_shared<Ship>(*currentType, m_placementOrientation);
                 m_localBoard.placeShip(ship, {hx, hy});
                 m_pendingPlacements.push_back({(int)*currentType, hx, hy,
@@ -573,16 +629,16 @@ void GraphicalView::renderPlacement(const ClientState& state) {
     }
 
     Rectangle btnAuto{(float)(gx + gw + 30), (float)(gy + 50), 160.f, 40.f};
-    bool hovAuto = !m_showSettingsModal && CheckCollisionPointRec(mouse, btnAuto);
+    bool hovAuto = !m_showSettingsModal && !m_showExitConfirm && CheckCollisionPointRec(mouse, btnAuto);
     drawButton(btnAuto, "Auto-Deploy", hovAuto);
     if (hovAuto && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
         playClick();
         randomizeLocalFleet();
     }
 
-    if (m_pendingPlacements.size() == SHIP_ORDER.size()) {
+    if (m_pendingPlacements.size() == standardFleet.size()) {
         Rectangle btnConf{(float)(gx + gw + 30), (float)(gy + 110), 160.f, 40.f};
-        bool hovConf = !m_showSettingsModal && CheckCollisionPointRec(mouse, btnConf);
+        bool hovConf = !m_showSettingsModal && !m_showExitConfirm && CheckCollisionPointRec(mouse, btnConf);
         drawButton(btnConf, "Confirm", hovConf);
         if (hovConf && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
             playClick();
@@ -710,7 +766,7 @@ void GraphicalView::renderGame(const ClientState& state) {
     }
 
     // --- ABILITY INPUT & UI ---
-    if (!m_showSettingsModal && state.serverState == Protocol::UserState::YourTurn) {
+    if (!m_showSettingsModal && !m_showExitConfirm && state.serverState == Protocol::UserState::YourTurn) {
         // Toggle Sonar
         if (IsKeyPressed(KEY_SPACE) && abilityAvailable(state, Protocol::AbilityType::Sonar)) {
             m_abilityMode = (m_abilityMode == AbilityMode::Sonar) ? AbilityMode::None : AbilityMode::Sonar;
@@ -926,11 +982,11 @@ void GraphicalView::renderGame(const ClientState& state) {
 
     // --- MENU BUTTON ---
     Rectangle btnLeave{20.f, 20.f, 100.f, 35.f};
-    bool hovLeave = !m_showSettingsModal && CheckCollisionPointRec(getVirtualMousePosition(), btnLeave);
+    bool hovLeave = !m_showSettingsModal && !m_showExitConfirm && CheckCollisionPointRec(getVirtualMousePosition(), btnLeave);
     drawButton(btnLeave, "< Menu", hovLeave);
     if (hovLeave && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-        playClickMenu();
-        if (m_owner) m_owner->resetToMenu();
+        playClick();
+        m_showExitConfirm = true;
     }
 }
 
