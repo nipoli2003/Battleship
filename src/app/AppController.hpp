@@ -68,6 +68,7 @@ class AppController {
      * @return true if the placement was accepted by the server.
      */
     bool sendPlacement(const std::vector<Protocol::ShipPlacement>& ships);
+    void sendAbility(int abilityType, int x, int y, int orientation = 0);
 
     /**
      * @brief Sends a shot at the chosen board coordinate.

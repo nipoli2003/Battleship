@@ -91,6 +91,8 @@ class GraphicalView : public IView {
      * @brief Plays the UI click sound.
      */
     void playClick();
+    void playClickMenu();
+    void playClickQuit();
 
     // scene renderers
     /**
@@ -199,12 +201,21 @@ class GraphicalView : public IView {
      */
     void randomizeLocalFleet();
 
+    // --- ABILITY UI STATE ---
+    enum class AbilityMode { None, Sonar, Torpedo, BombingRun };
+    AbilityMode m_abilityMode{AbilityMode::None};
+    Orientation m_abilityOrientation{Orientation::Horizontal};
+
+    // Helper to check if an ability is available based on server updates
+    bool abilityAvailable(const ClientState& state, Protocol::AbilityType t) const;
+
     AppController* m_owner{nullptr}; ///< Owning app controller.
 
     // --- Settings (main thread only) ---
     bool m_showSettingsModal{false}; ///< Whether the settings modal is visible.
     bool m_draggingMusic{false}; ///< Whether the music slider is actively dragged.
     bool m_draggingSFX{false}; ///< Whether the SFX slider is actively dragged.
+    bool m_showAbilityLogs{true};
 
     // --- Exit confirmation (main thread only) ---
     bool m_showExitConfirm{false}; ///< Whether the exit confirmation box is visible.

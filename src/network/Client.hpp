@@ -80,6 +80,7 @@ class NetworkClient {
      * @param payload Ship positions to submit.
      */
     void sendPlaceShips(const std::vector<Protocol::ShipPlacement>& payload);
+    void sendUseAbility(int abilityType, int x, int y, int orientation);
 
     /**
      * @brief Sends a single shot command to the server.

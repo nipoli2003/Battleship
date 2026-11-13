@@ -19,25 +19,18 @@ namespace Protocol {
  */
 enum MsgType : int {
     // client -> server
-    CREATE_LOBBY = 0, 
-    JOIN_LOBBY,       
-    PLACE_SHIPS,     
-    FIRE_SHOT,       
+    CREATE_LOBBY = 0,
+    JOIN_LOBBY,
+    PLACE_SHIPS,
+    FIRE_SHOT,
     USE_ABILITY,
     // server -> client
-    LOBBY_CODE,      
-    LOBBY_JOINED,    
-    LOBBY_ERROR,     
-    STATE_UPDATE,    
-    GAME_OVER,       
-    SERVER_ERROR 
-};
-
-/**
- * @brief Supported special abilities.
- */
-enum class AbilityType : int {
-    Sonar = 0, ///< Reveal an enemy cell or area.
+    LOBBY_CODE,
+    LOBBY_JOINED,
+    LOBBY_ERROR,
+    STATE_UPDATE,
+    GAME_OVER,
+    SERVER_ERROR
 };
 
 /**
@@ -77,7 +70,7 @@ struct CreateLobby {
  */
 struct JoinLobby {
     MsgType type{JOIN_LOBBY}; ///< Message type identifier.
-    std::string code;        ///< Lobby code provided by the client.
+    std::string code;         ///< Lobby code provided by the client.
 };
 
 /**
@@ -94,7 +87,7 @@ struct ShipPlacement {
  * @brief Request to submit a full fleet placement.
  */
 struct PlaceShips {
-    MsgType type{PLACE_SHIPS}; ///< Message type identifier.
+    MsgType type{PLACE_SHIPS};        ///< Message type identifier.
     std::vector<ShipPlacement> ships; ///< Placement entries for all ships.
 };
 
@@ -108,13 +101,28 @@ struct FireShot {
 };
 
 /**
+ * @brief Supported special abilities.
+ */
+enum class AbilityType : int {
+    Sonar = 0,     // Destroyer
+    Torpedo = 1,   // Submarine
+    BombingRun = 2 // Carrier
+};
+
+inline constexpr int ABILITY_COUNT = 3;
+inline constexpr int START_CHARGES[ABILITY_COUNT] = {1, 1, 3};
+inline constexpr int TORPEDO_RANGE = 10; // SIZE = 10
+inline constexpr int BOMBINGRUN_RANGE = 3;
+
+/**
  * @brief Request to trigger a special ability.
  */
 struct UseAbility {
     MsgType type{USE_ABILITY}; ///< Message type identifier.
     int abilityType{};         ///< Ability encoded as a Protocol::AbilityType value.
-    int x{};                  ///< Target column.
-    int y{};                  ///< Target row.
+    int x{};                   ///< Target column.
+    int y{};                   ///< Target row.
+    int orientation{0};        // 0 = Horizontal, 1 = Vertical
 };
 
 /**
@@ -129,7 +137,8 @@ struct LobbyCode {
  * @brief Confirmation that the client successfully joined a lobby.
  */
 struct LobbyJoined {
-    MsgType type{LOBBY_JOINED}; ///< Message type identifier.
+    MsgType type{LOBBY_JOINED};
+    int playerIdx{-1}; // 0 or 1, assigned by the server
 };
 
 /**
@@ -137,7 +146,7 @@ struct LobbyJoined {
  */
 struct LobbyError {
     MsgType type{LOBBY_ERROR}; ///< Message type identifier.
-    std::string error;        ///< Error text returned by the server.
+    std::string error;         ///< Error text returned by the server.
 };
 
 /**
@@ -156,12 +165,23 @@ enum UserState : int {
  * @brief Full state snapshot sent to a player after each turn or phase change.
  */
 struct StateUpdate {
-    MsgType type{STATE_UPDATE}; ///< Message type identifier.
-    UserState state;            ///< The player's current match state.
-    int turnNumber{};           ///< Current turn counter.
-    std::string statusMessage;  ///< Human-readable status for the UI.
-    std::vector<int> yourBoard; ///< Board state visible to the player.
-    std::vector<int> enemyBoard; ///< Opponent board state visible to the player.
+    MsgType type{STATE_UPDATE};       ///< Message type identifier.
+    UserState state;                  ///< The player's current match state.
+    int turnNumber{};                 ///< Current turn counter.
+    std::string statusMessage;        ///< Human-readable status for the UI.
+    std::vector<int> yourBoard;       ///< Board state visible to the player.
+    std::vector<int> enemyBoard;      ///< Opponent board state visible to the player.
+    std::vector<int> ability_charges; // abilities left for the player
+
+    std::vector<std::string> abilityLogs; // side panel helper for ability log
+
+    int lastShooter{-1}; // -1 = no shot yet
+    int lastResult{-1};  // cast from AttackResult
+
+    int lastAbilityType{-1};
+    int lastAbilityX{-1};
+    int lastAbilityY{-1};
+    int lastAbilityResult{0};
 };
 
 /**
@@ -178,7 +198,7 @@ struct GameOver {
  */
 struct ServerError {
     MsgType type{SERVER_ERROR}; ///< Message type identifier.
-    std::string error;         ///< Error description.
+    std::string error;          ///< Error description.
 };
 
 // Glaze helpers

@@ -122,6 +122,15 @@ void NetworkClient::sendFireShot(int x, int y) {
     sendMsg(Protocol::to_json(Protocol::FireShot{.x = x, .y = y}));
 }
 
+void NetworkClient::sendUseAbility(int abilityType, int x, int y, int orientation) {
+    sendMsg(Protocol::to_json(Protocol::UseAbility{
+        .abilityType = abilityType, 
+        .x = x, 
+        .y = y, 
+        .orientation = orientation
+    }));
+}
+
 // Background thread: read from the socket, parse messages, and push events to the inbox.
 void NetworkClient::listenLoop() noexcept {
     try {
@@ -168,7 +177,7 @@ void NetworkClient::dispatch(const std::string& line) {
     using MT = Protocol::MsgType;
     switch (type) {
     case MT::LOBBY_CODE:   pushEvent(Protocol::from_json<Protocol::LobbyCode>(line)); break;
-    case MT::LOBBY_JOINED: pushEvent(Protocol::LobbyJoined{}); break;
+    case MT::LOBBY_JOINED: pushEvent(Protocol::from_json<Protocol::LobbyJoined>(line)); break;
     case MT::LOBBY_ERROR:  pushEvent(Protocol::from_json<Protocol::LobbyError>(line)); break;
     case MT::STATE_UPDATE: pushEvent(Protocol::from_json<Protocol::StateUpdate>(line)); break;
     case MT::GAME_OVER:    pushEvent(Protocol::from_json<Protocol::GameOver>(line)); break;

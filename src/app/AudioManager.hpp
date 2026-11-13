@@ -15,13 +15,16 @@
  * @brief Available sound effects for gameplay and UI feedback.
  */
 enum class SoundEffect {
-    FireSalvo,    
-    Hit,     
-    Miss,       
-    ShipSunk,     
-    AbilityPing,  
+    FireSalvo,
+    Hit,
+    Miss,
+    ShipSunk,
+    Sonar,
     ButtonClick,
-    PlaneFlyby    
+    ButtonClickBack,
+    ButtonClickQuit,
+    BombingRun,
+    Torpedo
 };
 
 /**
