@@ -96,6 +96,7 @@ void AppController::handleNetEvent(const Network::NetEvent& ev) {
             m_state.abilityCharges = msg.ability_charges;
             m_state.abilityLogs    = msg.abilityLogs;
 
+            m_state.lastShooter = msg.lastShooter;
             m_state.lastAbilityType = msg.lastAbilityType;
             m_state.lastAbilityX = msg.lastAbilityX;
             m_state.lastAbilityY = msg.lastAbilityY;

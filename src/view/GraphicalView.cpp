@@ -675,6 +675,40 @@ void GraphicalView::renderGame(const ClientState& state) {
     drawGrid(hgx, gy, state.yourBoard, false, false);
     drawGrid(egx, gy, state.enemyBoard, true, true);
 
+    // --- ENEMY SONAR PULSATING VISUAL ---
+    if (state.lastAbilityType == static_cast<int>(Protocol::AbilityType::Sonar) && 
+        state.lastAbilityX != -1 && 
+        state.localPlayerIdx != -1 &&
+        state.lastShooter != state.localPlayerIdx) // Checks if the enemy used it
+    {
+        // Pulse effect using sin() based on game time
+        float time = (float)GetTime();
+        float pulse = (sinf(time * 4.0f) + 1.0f) / 2.0f; // 0.0 to 1.0
+        Color sonarColor = Fade(YELLOW, 0.3f + 0.7f * pulse); // Pulses between dim and bright
+
+        int cx = state.lastAbilityX;
+        int cy = state.lastAbilityY;
+
+        // Draw 3x3 area on the player's own board (hgx, gy)
+        for (int dy = -1; dy <= 1; ++dy) {
+            for (int dx = -1; dx <= 1; ++dx) {
+                int drawX = cx + dx;
+                int drawY = cy + dy;
+                if (drawX >= 0 && drawX < Board::SIZE && drawY >= 0 && drawY < Board::SIZE) {
+                    // Draw filled translucent box + outline
+                    Rectangle cell{
+                        (float)(hgx + drawX * CELL_SIZE), 
+                        (float)(gy + drawY * CELL_SIZE), 
+                        (float)CELL_SIZE, 
+                        (float)CELL_SIZE
+                    };
+                    DrawRectangleRec(cell, Fade(sonarColor, 0.2f));
+                    DrawRectangleLinesEx(cell, 2, sonarColor);
+                }
+            }
+        }
+    }
+
     // --- ABILITY INPUT & UI ---
     if (!m_showSettingsModal && state.serverState == Protocol::UserState::YourTurn) {
         // Toggle Sonar

@@ -37,6 +37,7 @@ struct ClientState {
     int lastResultSeen{-1};
     int turnNumberSeen{-1};
 
+    int lastShooter{-1};
     int lastAbilityType{-1};
     int lastAbilityX{-1};
     int lastAbilityY{-1};
