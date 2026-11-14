@@ -37,6 +37,12 @@ void AppController::applyLocalSnapshot(const Protocol::StateUpdate &snap) {
     m_state.statusMessage = snap.statusMessage;
     m_state.yourBoard = snap.yourBoard;
     m_state.enemyBoard = snap.enemyBoard;
+    m_state.abilityCharges  = snap.ability_charges;
+    m_state.abilityLogs     = snap.abilityLogs;
+    m_state.lastShooter     = snap.lastShooter;
+    m_state.lastAbilityType = snap.lastAbilityType;
+    m_state.lastAbilityX    = snap.lastAbilityX;
+    m_state.lastAbilityY    = snap.lastAbilityY;
 
     if ((snap.state == Protocol::UserState::Victory || snap.state == Protocol::UserState::Defeat) && !m_state.gameOver) {
         m_state.gameOver = Protocol::GameOver{.result = snap.state, .message = snap.statusMessage};
@@ -203,11 +209,6 @@ void AppController::sendShot(int x, int y) {
 }
 
 void AppController::sendAbility(int abilityType, int x, int y, int orientation) {
-    if (!m_net || !m_net->isConnected()) {
-        std::cerr << "[app] cannot send ability: not connected\n";
-        return;
-    }
-
     // Play SFX immediately on the attacker's side for responsiveness
     if (abilityType == static_cast<int>(Protocol::AbilityType::Sonar)) {
         AudioManager::instance().playSFX(SoundEffect::Sonar);
@@ -218,6 +219,21 @@ void AppController::sendAbility(int abilityType, int x, int y, int orientation) 
         AudioManager::instance().playSFX(SoundEffect::FireSalvo);
     } else if (abilityType == static_cast<int>(Protocol::AbilityType::BombingRun)) {
         AudioManager::instance().playSFX(SoundEffect::BombingRun);
+    }
+
+    if (m_mode == Mode::Local) {
+        if (m_localMatch) {
+            m_localMatch->submitAbility(
+                static_cast<Protocol::AbilityType>(abilityType),
+                x, y,
+                orientation == 0 ? Orientation::Horizontal : Orientation::Vertical);
+        }
+        return;
+    }
+
+    if (!m_net || !m_net->isConnected()) {
+        std::cerr << "[app] cannot send ability: not connected\n";
+        return;
     }
 
     std::cerr << "[app] sending ability " << abilityType << " at (" << x << ", " << y << ") orient=" << orientation << "\n";

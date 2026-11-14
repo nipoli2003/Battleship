@@ -42,6 +42,17 @@ bool LocalMatch::submitShot(int x, int y) {
     return true;
 }
 
+bool LocalMatch::submitAbility(Protocol::AbilityType ability, int x, int y, Orientation orientation) {
+    if (!isHumanTurn())
+        return false;
+    if (m_engine.useAbility(m_humanIdx, ability, {x, y}, orientation) < 0)
+        return false;
+    markDirty();
+    if (isBotTurn())
+        addBotDelay();
+    return true;
+}
+
 bool LocalMatch::isHumanTurn() const {
     auto s = m_engine.getSnapshot().state;
     bool p0 = (s == MatchState::PlayerTurn);

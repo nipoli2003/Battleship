@@ -49,6 +49,16 @@ class LocalMatch {
     void tick();
 
     /**
+     * @brief Uses a tactical ability for the human player.
+     * @param ability     Ability to use (Sonar, Torpedo or BombingRun).
+     * @param x           Target column.
+     * @param y           Target row.
+     * @param orientation Orientation, only used by Torpedo and BombingRun.
+     * @return true if the ability was legal and processed.
+     */
+    bool submitAbility(Protocol::AbilityType ability, int x, int y, Orientation orientation = Orientation::Horizontal);
+
+    /**
      * @brief Checks whether the match is over.
      * @return true when one side has won the match.
      */
