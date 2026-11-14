@@ -7,6 +7,7 @@
 #include <optional>
 #include <random>
 #include <string>
+#include <thread>
 
 GraphicalView::GraphicalView() = default;
 
@@ -25,12 +26,22 @@ bool GraphicalView::shouldClose() const {
 }
 
 void GraphicalView::close() {
+    std::this_thread::sleep_for(std::chrono::milliseconds(1500));
+
     UnloadRenderTexture(m_target);
     CloseWindow();
 }
 
 void GraphicalView::playClick() {
     AudioManager::instance().playSFX(SoundEffect::ButtonClick);
+}
+
+void GraphicalView::playClickMenu() {
+    AudioManager::instance().playSFX(SoundEffect::ButtonClickBack);
+}
+
+void GraphicalView::playClickQuit() {
+    AudioManager::instance().playSFX(SoundEffect::ButtonClickQuit);
 }
 
 // ------------------------------------------------------------------ helpers
@@ -159,7 +170,7 @@ void GraphicalView::renderSettingsModal(const ClientState& state) {
     drawButton(btnClose, "Close", hovClose);
 
     if ((hovClose && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) || IsKeyPressed(KEY_ESCAPE)) {
-        playClick();
+        playClickQuit();
         m_showSettingsModal = false;
         m_draggingMusic = false;
         m_draggingSFX = false;
@@ -270,6 +281,35 @@ void GraphicalView::resetPlacementState() {
     m_placementSent = false;
 }
 
+bool GraphicalView::abilityAvailable(const ClientState& state, Protocol::AbilityType t) const {
+    int idx = static_cast<int>(t);
+    if (idx < 0 || idx >= static_cast<int>(state.abilityCharges.size())) return false;
+    if (state.abilityCharges[idx] <= 0) return false;
+
+    // Check if the required ship is still alive on the board
+    ShipType requiredShip;
+    CellState requiredCell;
+    
+    if (t == Protocol::AbilityType::Sonar) {
+        requiredShip = ShipType::Destroyer;
+        requiredCell = CellState::Destroyer;
+    } else if (t == Protocol::AbilityType::Torpedo) {
+        requiredShip = ShipType::Submarine;
+        requiredCell = CellState::Submarine;
+    } else if (t == Protocol::AbilityType::BombingRun) {
+        requiredShip = ShipType::Carrier;
+        requiredCell = CellState::Carrier;
+    } else {
+        return true;
+    }
+
+    // If the ship is still present as a ship type, it's alive.
+    for (int val : state.yourBoard) {
+        if (val == static_cast<int>(requiredCell)) return true;
+    }
+    return false;
+}
+
 void GraphicalView::render(const ClientState& state) {
     handleFullscreenToggle();
 
@@ -351,6 +391,8 @@ void GraphicalView::render(const ClientState& state) {
     DrawTexturePro(m_target.texture, srcRec, destRec, Vector2{0.0f, 0.0f}, 0.0f, WHITE);
     EndDrawing();
 }
+
+// ------------------------------------------------------------------ Menu section renderers
 
 void GraphicalView::renderTitleScreen(const ClientState& state) {
     Vector2 mouse = getVirtualMousePosition();
@@ -444,7 +486,7 @@ void GraphicalView::renderMainMenu(const ClientState& state) {
     bool hovExit = !m_showSettingsModal && !m_showDifficultyModal && CheckCollisionPointRec(mouse, btnExit);
     drawButton(btnExit, "Exit Game", hovExit);
     if (hovExit && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-        playClick();
+        playClickQuit();
         if (m_owner) m_owner->requestExit();
     }
 
@@ -504,7 +546,7 @@ void GraphicalView::renderLobbySetup(const ClientState& state) {
     bool hovBack = !m_showSettingsModal && CheckCollisionPointRec(mouse, btnBack);
     drawButton(btnBack, "Back to Menu", hovBack);
     if (hovBack && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-        playClick();
+        playClickMenu();
         m_owner->resetToMenu();
     }
 }
@@ -537,10 +579,12 @@ void GraphicalView::renderLobbyWait(const ClientState& state) {
     bool hovBack = !m_showSettingsModal && CheckCollisionPointRec(mouse, btnBack);
     drawButton(btnBack, "Back to Menu", hovBack);
     if (hovBack && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-        playClick();
+        playClickMenu();
         if (m_owner) m_owner->resetToMenu();
     }
 }
+
+// ------------------------------------------------------------------ Board renderers
 
 void GraphicalView::randomizeLocalFleet() {
     std::mt19937 rng{std::random_device{}()};
@@ -685,16 +729,42 @@ void GraphicalView::drawGrid(int startX, int startY, const std::vector<int>& cel
 }
 
 void GraphicalView::handleBoardClicks(int ex, int ey) {
-    if (!IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
-        return;
+    if (!IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) return;
+
     Vector2 mouse = getVirtualMousePosition();
-    for (int y = 0; y < Board::SIZE; ++y)
-        for (int x = 0; x < Board::SIZE; ++x)
-            if (CheckCollisionPointRec(mouse, {(float)(ex + x * CELL_SIZE), (float)(ey + y * CELL_SIZE),
-                                               (float)CELL_SIZE, (float)CELL_SIZE})) {
-                if (m_owner) m_owner->sendShot(x, y);
+    for (int y = 0; y < Board::SIZE; ++y) {
+        for (int x = 0; x < Board::SIZE; ++x) {
+            if (CheckCollisionPointRec(mouse, { (float)(ex + x * CELL_SIZE), (float)(ey + y * CELL_SIZE), (float)CELL_SIZE, (float)CELL_SIZE })) {
+                
+                if (m_abilityMode == AbilityMode::None) {
+                    if (m_owner) m_owner->sendShot(x, y);
+                    AudioManager::instance().playSFX(SoundEffect::FireSalvo);
+                } 
+                // Toggle for sonar mode: allows user to deselect ability to avoid misfire
+                else if (m_abilityMode == AbilityMode::Sonar) {
+                    if (m_owner) 
+                        m_owner->sendAbility(static_cast<int>(Protocol::AbilityType::Sonar), x, y);
+
+                    m_abilityMode = AbilityMode::None; // Exit targeting mode
+                } 
+                // Toggle for torpedo mode: allows user to deselect ability to avoid misfire
+                else if (m_abilityMode == AbilityMode::Torpedo) {
+                    if (m_owner) 
+                        m_owner->sendAbility(static_cast<int>(Protocol::AbilityType::Torpedo), x, y,(m_abilityOrientation == Orientation::Horizontal) ? 0 : 1);
+
+                    m_abilityMode = AbilityMode::None; // Exit targeting mode
+                }
+                // Toggle for BombingRun mode: allows user to deselect ability to avoid misfire
+                else if (m_abilityMode == AbilityMode::BombingRun) {
+                    if (m_owner) 
+                        m_owner->sendAbility(static_cast<int>(Protocol::AbilityType::BombingRun), x, y,(m_abilityOrientation == Orientation::Horizontal) ? 0 : 1);
+
+                    m_abilityMode = AbilityMode::None; // Exit targeting mode
+                }
                 return;
             }
+        }
+    }
 }
 
 void GraphicalView::renderGame(const ClientState& state) {
@@ -714,9 +784,256 @@ void GraphicalView::renderGame(const ClientState& state) {
     drawGrid(hgx, gy, state.yourBoard, false, false);
     drawGrid(egx, gy, state.enemyBoard, true, true);
 
-    if (!m_showSettingsModal && !m_showExitConfirm && state.serverState == Protocol::UserState::YourTurn)
+    // --- ENEMY SONAR PULSATING VISUAL ---
+    if (state.lastAbilityType == static_cast<int>(Protocol::AbilityType::Sonar) && 
+        state.lastAbilityX != -1 && 
+        state.localPlayerIdx != -1 &&
+        state.lastShooter != state.localPlayerIdx) // Checks if the enemy used it
+    {
+        // Pulse effect using sin() based on game time
+        float time = (float)GetTime();
+        float pulse = (sinf(time * 4.0f) + 1.0f) / 2.0f; // 0.0 to 1.0
+        Color sonarColor = Fade(YELLOW, 0.3f + 0.7f * pulse); // Pulses between dim and bright
+
+        int cx = state.lastAbilityX;
+        int cy = state.lastAbilityY;
+
+        // Draw 3x3 area on the player's own board (hgx, gy)
+        for (int dy = -1; dy <= 1; ++dy) {
+            for (int dx = -1; dx <= 1; ++dx) {
+                int drawX = cx + dx;
+                int drawY = cy + dy;
+                if (drawX >= 0 && drawX < Board::SIZE && drawY >= 0 && drawY < Board::SIZE) {
+                    // Draw filled translucent box + outline
+                    Rectangle cell{
+                        (float)(hgx + drawX * CELL_SIZE), 
+                        (float)(gy + drawY * CELL_SIZE), 
+                        (float)CELL_SIZE, 
+                        (float)CELL_SIZE
+                    };
+                    DrawRectangleRec(cell, Fade(sonarColor, 0.2f));
+                    DrawRectangleLinesEx(cell, 2, sonarColor);
+                }
+            }
+        }
+    }
+
+    // --- ABILITY INPUT & UI ---
+    if (!m_showSettingsModal && !m_showExitConfirm && state.serverState == Protocol::UserState::YourTurn) {
+        // Toggle Sonar
+        if (IsKeyPressed(KEY_SPACE) && abilityAvailable(state, Protocol::AbilityType::Sonar)) {
+            m_abilityMode = (m_abilityMode == AbilityMode::Sonar) ? AbilityMode::None : AbilityMode::Sonar;
+            AudioManager::instance().playSFX(SoundEffect::Sonar);
+        }
+
+        // Toggle Torpedo
+        if (IsKeyPressed(KEY_T) && abilityAvailable(state, Protocol::AbilityType::Torpedo)) {
+            m_abilityMode = (m_abilityMode == AbilityMode::Torpedo) ? AbilityMode::None : AbilityMode::Torpedo;
+            AudioManager::instance().playSFX(SoundEffect::ButtonClick);
+        }
+        // Rotate Torpedo
+        if (m_abilityMode == AbilityMode::Torpedo && IsKeyPressed(KEY_R)) {
+            m_abilityOrientation = (m_abilityOrientation == Orientation::Horizontal) ? Orientation::Vertical : Orientation::Horizontal;
+        }
+
+        // Toggle BombingRun
+        if (IsKeyPressed(KEY_B) && abilityAvailable(state, Protocol::AbilityType::BombingRun)) {
+            m_abilityMode = (m_abilityMode == AbilityMode::BombingRun) ? AbilityMode::None : AbilityMode::BombingRun;
+            AudioManager::instance().playSFX(SoundEffect::BombingRun);
+        }
+        // Rotate BombingRun (NEW)
+        if (m_abilityMode == AbilityMode::BombingRun && IsKeyPressed(KEY_R)) {
+            m_abilityOrientation = (m_abilityOrientation == Orientation::Horizontal) ? Orientation::Vertical : Orientation::Horizontal;
+        }
+
+        // Cancel
+        if (IsKeyPressed(KEY_ESCAPE)) m_abilityMode = AbilityMode::None;
+
+        // Handle clicks (now aware of ability mode)
         handleBoardClicks(egx, gy);
 
+        // --- PREVIEW OVERLAYS ---
+        Vector2 mouse = getVirtualMousePosition();
+        int hx = (int)(mouse.x - egx) / CELL_SIZE;
+        int hy = (int)(mouse.y - gy) / CELL_SIZE;
+
+        if (hx >= 0 && hx < Board::SIZE && hy >= 0 && hy < Board::SIZE) {
+            if (m_abilityMode == AbilityMode::Sonar) {
+                // Draw 3x3 Sonar Preview
+                for (int dy = -1; dy <= 1; ++dy) {
+                    for (int dx = -1; dx <= 1; ++dx) {
+                        int cx = hx + dx, cy = hy + dy;
+                        if (cx >= 0 && cx < Board::SIZE && cy >= 0 && cy < Board::SIZE) {
+                            DrawRectangleLinesEx({(float)(egx + cx * CELL_SIZE), (float)(gy + cy * CELL_SIZE), 
+                                                  (float)CELL_SIZE, (float)CELL_SIZE}, 2, YELLOW);
+                        }
+                    }
+                }
+            } else if (m_abilityMode == AbilityMode::Torpedo) {
+                // Draw Torpedo Line Preview (Full Row/Column)
+                for (int i = 0; i < Board::SIZE; ++i) {
+                    int drawX = (m_abilityOrientation == Orientation::Horizontal) ? i : hx;
+                    int drawY = (m_abilityOrientation == Orientation::Vertical) ? i : hy;
+                    
+                    DrawRectangleLinesEx(
+                        {(float)(egx + drawX * CELL_SIZE), (float)(gy + drawY * CELL_SIZE), 
+                         (float)CELL_SIZE, (float)CELL_SIZE}, 
+                        2, RED
+                    );
+                }
+            } else if (m_abilityMode == AbilityMode::BombingRun) {
+                // Draw 3x1 Bombing Run Preview
+                for (int i = 0; i < 3; ++i) {
+                    int drawX = (m_abilityOrientation == Orientation::Horizontal) ? hx + i : hx;
+                    int drawY = (m_abilityOrientation == Orientation::Vertical) ? hy + i : hy;
+
+                    // Ensure the 3-cell strike zone stays within the board
+                    if (drawX >= 0 && drawX < Board::SIZE && drawY >= 0 && drawY < Board::SIZE) {
+                        Rectangle cell = {
+                            (float)(egx + drawX * CELL_SIZE), 
+                            (float)(gy + drawY * CELL_SIZE), 
+                            (float)CELL_SIZE, 
+                            (float)CELL_SIZE
+                        };
+                        
+                        // Draw a translucent orange fill and a solid outline
+                        DrawRectangleRec(cell, Fade(ORANGE, 0.2f));
+                        DrawRectangleLinesEx(cell, 2, ORANGE);
+                    }
+                }
+            }
+        }
+    } else if (state.serverState != Protocol::UserState::YourTurn) {
+        m_abilityMode = AbilityMode::None; // Reset if turn ends
+    }
+
+    // --- ABILITY BAR ---
+    int barY = gy + gw + 30;
+    float btnW = 160.0f;
+    float btnH = 40.0f;
+    float gap = 20.0f;
+    
+    float totalW = (btnW * 3) + (gap * 2);
+    float startX = (VIRTUAL_WIDTH - totalW) / 2.0f;
+
+    // Helper to check if a ship is still alive on the board (not hit/sunk)
+    auto isShipAlive = [&](CellState shipCell) {
+        for (int val : state.yourBoard) {
+            if (val == static_cast<int>(shipCell)) return true;
+        }
+        return false;
+    };
+
+    bool destroyerAlive = isShipAlive(CellState::Destroyer);
+    bool submarineAlive = isShipAlive(CellState::Submarine);
+    bool carrierAlive = isShipAlive(CellState::Carrier);
+    
+    // ================= SONAR =================
+    Rectangle btnSonar{startX, (float)barY, btnW, btnH};
+    bool hovSonar = !m_showSettingsModal && CheckCollisionPointRec(getVirtualMousePosition(), btnSonar);
+    
+    int sonarCharges = static_cast<int>(state.abilityCharges.size()) > 0 ? state.abilityCharges[0] : 0;
+    bool sonarAvail = abilityAvailable(state, Protocol::AbilityType::Sonar);
+    bool sonarActive = (m_abilityMode == AbilityMode::Sonar);
+    
+    // Draw Button
+    const char* sonarText = sonarActive ? "Cancel Sonar" : "[SPACE] Sonar";
+    drawButton(btnSonar, sonarText, hovSonar);
+    
+    // Draw Subtext (Sunk > Used > Remaining)
+    std::string sonarSub = "";
+    Color sonarSubColor = LIGHTGRAY;
+    if (!destroyerAlive) {
+        sonarSub = "Destroyer Sunk";
+        sonarSubColor = RED;
+        DrawRectangleLinesEx(btnSonar, 2, RED);
+    } else if (sonarCharges == 0) {
+        sonarSub = "Used";
+        sonarSubColor = DARKGRAY;
+        DrawRectangleLinesEx(btnSonar, 2, DARKGRAY);
+    } else {
+        sonarSub = "Remaining: " + std::to_string(sonarCharges);
+    }
+    DrawText(sonarSub.c_str(), (int)(btnSonar.x + (btnSonar.width - MeasureText(sonarSub.c_str(), 16)) / 2), barY + btnH + 5, 16, sonarSubColor);
+
+    if (hovSonar && IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && sonarAvail && state.serverState == Protocol::UserState::YourTurn) {
+        m_abilityMode = sonarActive ? AbilityMode::None : AbilityMode::Sonar;
+        AudioManager::instance().playSFX(SoundEffect::ButtonClick);
+    }
+
+    // ================= TORPEDO =================
+    Rectangle btnTorpedo{startX + btnW + gap, (float)barY, btnW, btnH};
+    bool hovTorpedo = !m_showSettingsModal && CheckCollisionPointRec(getVirtualMousePosition(), btnTorpedo);
+    
+    int torpCharges = static_cast<int>(state.abilityCharges.size()) > 1 ? state.abilityCharges[1] : 0;
+    bool torpAvail = abilityAvailable(state, Protocol::AbilityType::Torpedo);
+    bool torpActive = (m_abilityMode == AbilityMode::Torpedo);
+    
+    // Draw Button
+    const char* torpText = torpActive ? "Cancel Torpedo" : "[T] Torpedo";
+    drawButton(btnTorpedo, torpText, hovTorpedo);
+    
+    // Draw Subtext (Sunk > Used > Remaining)
+    std::string torpSub = "";
+    Color torpSubColor = LIGHTGRAY;
+    if (!submarineAlive) {
+        torpSub = "Submarine Sunk";
+        torpSubColor = RED;
+        DrawRectangleLinesEx(btnTorpedo, 2, RED);
+    } else if (torpCharges == 0) {
+        torpSub = "Used";
+        torpSubColor = DARKGRAY;
+        DrawRectangleLinesEx(btnTorpedo, 2, DARKGRAY);
+    } else {
+        torpSub = "Remaining: " + std::to_string(torpCharges);
+    }
+    DrawText(torpSub.c_str(), (int)(btnTorpedo.x + (btnTorpedo.width - MeasureText(torpSub.c_str(), 16)) / 2), barY + btnH + 5, 16, torpSubColor);
+
+    if (hovTorpedo && IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && torpAvail && state.serverState == Protocol::UserState::YourTurn) {
+        m_abilityMode = torpActive ? AbilityMode::None : AbilityMode::Torpedo;
+        AudioManager::instance().playSFX(SoundEffect::ButtonClick);
+    }
+
+    // ================= BOMBING RUN =================
+    Rectangle btnBomb{startX + (btnW + gap) * 2, (float)barY, btnW, btnH};
+    bool hovBomb = !m_showSettingsModal && CheckCollisionPointRec(getVirtualMousePosition(), btnBomb);
+    
+    int bombCharges = static_cast<int>(state.abilityCharges.size()) > 2 ? state.abilityCharges[2] : 0;
+    bool bombAvail = abilityAvailable(state, Protocol::AbilityType::BombingRun);
+    bool bombActive = (m_abilityMode == AbilityMode::BombingRun);
+    
+    // Draw Button
+    const char* bombText = bombActive ? "Cancel Bombing" : "[B] Bombing";
+    drawButton(btnBomb, bombText, hovBomb);
+    
+    // Draw Subtext (Sunk > Used > Remaining)
+    std::string bombSub = "";
+    Color bombSubColor = LIGHTGRAY;
+    if (!carrierAlive) {
+        bombSub = "Carrier Sunk";
+        bombSubColor = RED;
+        DrawRectangleLinesEx(btnBomb, 2, RED);
+    } else if (bombCharges == 0) {
+        bombSub = "Used";
+        bombSubColor = DARKGRAY;
+        DrawRectangleLinesEx(btnBomb, 2, DARKGRAY);
+    } else {
+        bombSub = "Remaining: " + std::to_string(bombCharges);
+    }
+    DrawText(bombSub.c_str(), (int)(btnBomb.x + (btnBomb.width - MeasureText(bombSub.c_str(), 16)) / 2), barY + btnH + 5, 16, bombSubColor);
+
+    if (hovBomb && IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && bombAvail && state.serverState == Protocol::UserState::YourTurn) {
+        m_abilityMode = bombActive ? AbilityMode::None : AbilityMode::BombingRun;
+        AudioManager::instance().playSFX(SoundEffect::ButtonClick);
+    }
+
+    // Orientation Indicator
+    if (torpActive || bombActive) {
+        const char* rotStr = (m_abilityOrientation == Orientation::Horizontal) ? "[R] Horizontal" : "[R] Vertical";
+        DrawText(rotStr, startX + totalW + 20, barY + 10, 18, SKYBLUE);
+    }
+
+    // --- MENU BUTTON ---
     Rectangle btnLeave{20.f, 20.f, 100.f, 35.f};
     bool hovLeave = !m_showSettingsModal && !m_showExitConfirm && CheckCollisionPointRec(getVirtualMousePosition(), btnLeave);
     drawButton(btnLeave, "< Menu", hovLeave);
@@ -739,7 +1056,7 @@ void GraphicalView::renderGameOver(const ClientState& state) {
     bool hovMenu = CheckCollisionPointRec(getVirtualMousePosition(), btnMenu);
     drawButton(btnMenu, "Back to Menu", hovMenu);
     if (hovMenu && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-        playClick();
+        playClickMenu();
         if (m_owner) m_owner->resetToMenu();
     }
 }

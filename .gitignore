@@ -2,9 +2,11 @@ build/
 bin/
 lib/
 .cache/
+docs/
 .DS_Store
 compile_commands.json
 .vscode/*
 !.vscode/settings.json
 !.vscode/tasks.json
 !.vscode/launch.json
+.VSCodeCounter

@@ -1,3 +1,8 @@
+/**
+ * @file BattleshipAI.hpp
+ * @brief AI opponent used for local bot matches.
+ */
+
 #pragma once
 
 #include "model/Board.hpp"
