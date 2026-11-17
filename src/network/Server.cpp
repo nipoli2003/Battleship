@@ -24,6 +24,27 @@ void GameServer::run(int port) {
             handle_client(std::move(sock));
         }).detach();
     }
+    std::cout << "[server] stopped.\n";
+}
+
+void GameServer::stop() {
+    m_running = false;
+    if (m_acceptor) {
+        m_acceptor.shutdown(SHUT_RDWR);
+        m_acceptor.close();
+    }
+
+    // close all active client sockets
+    std::lock_guard<std::mutex> lock(m_clients_mutex);
+    for (const auto &weak_client : m_all_clients) {
+        if (auto client = weak_client.lock()) {
+            if (client && client->socket.is_open()) {
+                client->socket.shutdown(SHUT_RDWR);
+                client->socket.close();
+            }
+        }
+    }
+    m_all_clients.clear();
 }
 
 std::string GameServer::make_code() {
@@ -87,6 +108,17 @@ std::string GameServer::readLine(sockpp::tcp_socket &sock) {
 void GameServer::handle_client(sockpp::tcp_socket sock) {
     auto client = std::make_shared<Client>();
     client->socket = std::move(sock);
+
+    {
+        std::lock_guard<std::mutex> lock(m_clients_mutex);
+        // remove expired weak pointers
+        m_all_clients.erase(
+            std::remove_if(m_all_clients.begin(), m_all_clients.end(),
+                           [](const auto &weak) { return weak.expired(); }),
+            m_all_clients.end());
+        // track the new client s.t. stop() can close it
+        m_all_clients.push_back(client);
+    }
 
     std::string line = readLine(client->socket);
     if (line.empty()) {

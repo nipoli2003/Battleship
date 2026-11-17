@@ -6,6 +6,7 @@
 #pragma once
 
 #include "network/GameSession.hpp"
+#include <atomic>
 #include <chrono>
 #include <memory>
 #include <mutex>
@@ -49,6 +50,12 @@ class GameServer {
     };
 
     using ClientPtr = std::shared_ptr<Client>; ///< Shared pointer to a connected client.
+
+    std::atomic<bool> m_running{false};
+    sockpp::tcp_acceptor m_acceptor;
+
+    std::mutex m_clients_mutex;                       //< Mutex for m_all_clients
+    std::vector<std::weak_ptr<Client>> m_all_clients; ///< All connected clients
 
     /**
      * @brief Registry entry for an open lobby waiting for a second player.
