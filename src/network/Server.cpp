@@ -14,7 +14,7 @@ void GameServer::run(int port) {
     }
     std::cout << "[server] linstening on port " << port << "\n";
 
-    std::thread(&GameServer::reaper, this).detach();
+    // std::thread(&GameServer::reaper, this).detach();
 
     while (true) {
         auto res = acc.accept();
@@ -48,27 +48,27 @@ void GameServer::sendLine(Client &c, const std::string &line) {
     c.socket.write_n(line.c_str(), line.size());
 }
 
-void GameServer::reaper() {
-    while (true) {
-        std::this_thread::sleep_for(std::chrono::seconds(10));
-        auto now = std::chrono::steady_clock::now();
-        std::lock_guard<std::mutex> lock(m_lobby_mutex);
-        for (auto it = m_registry.begin(); it != m_registry.end();) {
-            auto age = std::chrono::duration_cast<std::chrono::seconds>(now - it->second.created_at).count();
-            if (age >= LOBBY_TTL_S) {
-                std::cout << "[reaper] Expiring lobby " << it->first << "\n";
-                if (it->second.socket) { // check: when initializing, socket is null
-                    sendLine(*it->second.socket,
-                             Protocol::to_json(Protocol::LobbyError{.error = "Lobby expired"}));
-                    // socket closes when shared_ptr has no more references
-                }
-                it = m_registry.erase(it);
-            } else {
-                ++it;
-            }
-        }
-    }
-}
+// void GameServer::reaper() {
+//     while (true) {
+//         std::this_thread::sleep_for(std::chrono::seconds(10));
+//         auto now = std::chrono::steady_clock::now();
+//         std::lock_guard<std::mutex> lock(m_lobby_mutex);
+//         for (auto it = m_registry.begin(); it != m_registry.end();) {
+//             auto age = std::chrono::duration_cast<std::chrono::seconds>(now - it->second.created_at).count();
+//             if (age >= LOBBY_TTL_S) {
+//                 std::cout << "[reaper] Expiring lobby " << it->first << "\n";
+//                 if (it->second.socket) { // check: when initializing, socket is null
+//                     sendLine(*it->second.socket,
+//                              Protocol::to_json(Protocol::LobbyError{.error = "Lobby expired"}));
+//                     // socket closes when shared_ptr has no more references
+//                 }
+//                 it = m_registry.erase(it);
+//             } else {
+//                 ++it;
+//             }
+//         }
+//     }
+// }
 
 std::string GameServer::readLine(sockpp::tcp_socket &sock) {
     std::string line;
@@ -123,6 +123,37 @@ void GameServer::handle_new(ClientPtr client) {
     }
     sendLine(*client, Protocol::to_json(Protocol::LobbyCode{.code = code}));
     LOG_SRV_INFO("[+] Lobby created: ", code);
+
+    // wait up to TTL seconds for either a disconnect or the lobby to be claimed
+    struct timeval tv{LOBBY_TTL_S, 0};
+    // https://man7.org/linux/man-pages/man2/setsockopt.2.html -> on socket level, set timeout
+    setsockopt(client->socket.handle(), SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+
+    char buf[64];
+    // NOTE: read() is blocking; this is inefficient because now every lobby has a thread, even when empty
+    // NOTE: a better approach would be to use epoll (Linux) / kqueue (macOS)
+    // NOTE: -> one thread that watches all sockets and only wakes up on activity
+    // NOTE: however, the code would become platform-dependent; I'm too lazy to write different code for every platform, and I have no idea what to use on MS Windows
+    auto res = client->socket.read(buf, sizeof(buf));
+
+    std::lock_guard<std::mutex> lock(m_lobby_mutex);
+    if (!m_registry.count(code))
+        return;
+
+    m_registry.erase(code);
+    if (res && res.value() == 0) {
+        // success but 0 bytes = clean disconnect (FIN received)
+        LOG_SRV_INFO("[-] Lobby ", code, " removed: creator disconnected");
+    } else if (!res && (res.error() == std::errc::resource_unavailable_try_again ||
+                        res.error() == std::errc::operation_would_block)) {
+        // read() failed with EAGAIN/EWOULDBLOCK = timeout
+        LOG_SRV_INFO("[-] Lobby ", code, " expired");
+        sendLine(*client, Protocol::to_json(Protocol::LobbyError{.error = "Lobby expired"}));
+    } else {
+        // any other read error
+        LOG_SRV_INFO("[-] Lobby ", code, " removed: read error");
+    }
+    // the socket closes immediately on FIN -> fixes #54
 }
 
 void GameServer::handle_join(ClientPtr client, const std::string &code) {
@@ -141,6 +172,10 @@ void GameServer::handle_join(ClientPtr client, const std::string &code) {
         sendLine(*client, Protocol::to_json(Protocol::LobbyError{.error = "Lobby not found"}));
         return;
     }
+
+    // clear the TTL timeout set in handle_new, so the game session isn't affected
+    struct timeval tv{0, 0};
+    setsockopt(p0->socket.handle(), SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
 
     LOG_SRV_INFO("[+] Lobby joined: ", code);
     std::thread(&GameServer::runSession, this, p0, std::move(client)).detach();

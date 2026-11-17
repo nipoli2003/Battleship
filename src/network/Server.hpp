@@ -21,7 +21,7 @@ constexpr int BUFFER_SIZE = 4096;
 /**
  * @brief Lifetime of an unjoined lobby before it is expired.
  */
-constexpr int LOBBY_TTL_S = 60;
+constexpr int LOBBY_TTL_S = 30;
 
 /**
  * @brief Server that accepts connections, creates lobbies, and runs Battleship matches.
@@ -91,7 +91,7 @@ class GameServer {
     /**
      * @brief Removes stale lobbies whose lifetime exceeds the TTL.
      */
-    void reaper();
+    // void reaper();
 
     /**
      * @brief Handles a client connection during the initial handshake phase.
