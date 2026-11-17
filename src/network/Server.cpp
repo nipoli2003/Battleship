@@ -13,8 +13,7 @@ void GameServer::run(int port) {
         return;
     }
     std::cout << "[server] linstening on port " << port << "\n";
-
-    // std::thread(&GameServer::reaper, this).detach();
+    m_running = true;
 
     while (true) {
         auto res = acc.accept();
@@ -68,28 +67,6 @@ void GameServer::sendLine(Client &c, const std::string &line) {
     std::lock_guard<std::mutex> lock(c.write_mutex);
     c.socket.write_n(line.c_str(), line.size());
 }
-
-// void GameServer::reaper() {
-//     while (true) {
-//         std::this_thread::sleep_for(std::chrono::seconds(10));
-//         auto now = std::chrono::steady_clock::now();
-//         std::lock_guard<std::mutex> lock(m_lobby_mutex);
-//         for (auto it = m_registry.begin(); it != m_registry.end();) {
-//             auto age = std::chrono::duration_cast<std::chrono::seconds>(now - it->second.created_at).count();
-//             if (age >= LOBBY_TTL_S) {
-//                 std::cout << "[reaper] Expiring lobby " << it->first << "\n";
-//                 if (it->second.socket) { // check: when initializing, socket is null
-//                     sendLine(*it->second.socket,
-//                              Protocol::to_json(Protocol::LobbyError{.error = "Lobby expired"}));
-//                     // socket closes when shared_ptr has no more references
-//                 }
-//                 it = m_registry.erase(it);
-//             } else {
-//                 ++it;
-//             }
-//         }
-//     }
-// }
 
 std::string GameServer::readLine(sockpp::tcp_socket &sock) {
     std::string line;
@@ -151,7 +128,7 @@ void GameServer::handle_new(ClientPtr client) {
         do {
             code = make_code();
         } while (m_registry.count(code));
-        m_registry[code] = {client, std::chrono::steady_clock::now()};
+        m_registry[code] = client;
     }
     sendLine(*client, Protocol::to_json(Protocol::LobbyCode{.code = code}));
     LOG_SRV_INFO("[+] Lobby created: ", code);
@@ -194,7 +171,7 @@ void GameServer::handle_join(ClientPtr client, const std::string &code) {
         std::lock_guard<std::mutex> lock(m_lobby_mutex);
         auto it = m_registry.find(code);
         if (it != m_registry.end()) {
-            p0 = it->second.socket;
+            p0 = it->second;
             m_registry.erase(it);
         }
     }

@@ -7,7 +7,6 @@
 
 #include "network/GameSession.hpp"
 #include <atomic>
-#include <chrono>
 #include <memory>
 #include <mutex>
 #include <sockpp/tcp_acceptor.h>
@@ -57,16 +56,8 @@ class GameServer {
     std::mutex m_clients_mutex;                       //< Mutex for m_all_clients
     std::vector<std::weak_ptr<Client>> m_all_clients; ///< All connected clients
 
-    /**
-     * @brief Registry entry for an open lobby waiting for a second player.
-     */
-    struct LobbyEntry {
-        ClientPtr socket; ///< Waiting client for the lobby.
-        std::chrono::steady_clock::time_point created_at; ///< Time when the lobby was created.
-    };
-
-    std::mutex m_lobby_mutex; ///< Protects the lobby registry.
-    std::unordered_map<std::string, LobbyEntry> m_registry; ///< All currently open lobbies awaiting a match.
+    std::mutex m_lobby_mutex;                              ///< Protects the lobby registry.
+    std::unordered_map<std::string, ClientPtr> m_registry; ///< All currently open lobbies awaiting a match; contains the waiting client in the lobby
 
     /**
      * @brief Generates a new lobby code.
@@ -94,11 +85,6 @@ class GameServer {
      * @param line Message to send.
      */
     static void sendLine(Client &c, const std::string &line);
-
-    /**
-     * @brief Removes stale lobbies whose lifetime exceeds the TTL.
-     */
-    // void reaper();
 
     /**
      * @brief Handles a client connection during the initial handshake phase.
