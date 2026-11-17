@@ -22,7 +22,9 @@ class BattleshipEngine {
      */
     BattleshipEngine();
 
-    
+    /**
+     * @brief Resets the engine to a new match state.
+     */    
     void startNewGame();
 
     // Placement phase methods

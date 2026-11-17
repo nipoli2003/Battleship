@@ -42,11 +42,17 @@ class AppController {
 
     // --- Called by GraphicalView (main thread only) ---
     
+    /**
+     * @brief Returns the application to the main menu.
+     */
     void goToMenu();
 
-    
+    /**
+     * @brief Opens the lobby setup screen.
+     */
     void openLobbySetup();
 
+    /**
     /**
      * @brief Connects to a server and creates a new lobby.
      * @param ip Server address.
