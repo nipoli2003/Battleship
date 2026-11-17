@@ -70,14 +70,19 @@ void GameServer::sendLine(Client &c, const std::string &line) {
 
 std::string GameServer::readLine(sockpp::tcp_socket &sock) {
     std::string line;
-    char ch;
+    char buf[4096];
     while (true) {
-        auto res = sock.read(&ch, 1);
+        auto res = sock.read(buf, sizeof(buf));
         if (!res || res.value() <= 0)
             break;
-        if (ch == '\n')
-            break;
-        line.push_back(ch);
+
+        for (ssize_t i = 0; i < res.value(); ++i) {
+            if (buf[i] == '\n') {
+                line.append(buf, i);
+                return line;
+            }
+        }
+        line.append(buf, res.value());
     }
     return line;
 }
