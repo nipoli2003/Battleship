@@ -21,7 +21,7 @@ constexpr int BUFFER_SIZE = 4096;
 /**
  * @brief Lifetime of an unjoined lobby before it is expired.
  */
-constexpr int LOBBY_TTL_S = 30;
+constexpr int LOBBY_TTL_S = 60;
 
 /**
  * @brief Server that accepts connections, creates lobbies, and runs Battleship matches.
@@ -39,13 +39,19 @@ class GameServer {
      */
     void run(int port);
 
+    /**
+     * @brief stops the server cleanly
+     * used for testing
+     */
+    void stop();
+
   private:
     /**
      * @brief Client connection state tracked by the server.
      */
     struct Client {
         sockpp::tcp_socket socket; ///< Active client socket.
-        std::mutex write_mutex;   ///< Serializes outbound writes to this socket.
+        std::mutex write_mutex;    ///< Serializes outbound writes to this socket.
     };
 
     using ClientPtr = std::shared_ptr<Client>; ///< Shared pointer to a connected client.
