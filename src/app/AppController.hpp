@@ -103,6 +103,15 @@ class AppController {
      */
     void setSFXVolume(int volume);
 
+    /**
+     * @brief return the private State
+     * 
+     * @return const ClientState& 
+     */
+    const ClientState &state() const {
+      return m_state;
+    }
+
   private:
     
     enum class Mode { Online, Local };
