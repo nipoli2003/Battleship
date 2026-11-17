@@ -6,8 +6,8 @@
 #pragma once
 
 #include "model/Board.hpp"
-#include <vector>
 #include <random>
+#include <vector>
 
 /**
  * @brief Simple Battleship AI that targets remaining cells and follows hits.
@@ -43,12 +43,14 @@ public:
      */
     const FleetPlacement generateLegalPlacement();
 
-private:
-    std::vector<Coordinate> m_remainingTargets; ///< Untried target cells.
-    std::vector<Coordinate> m_priorityTargets; ///< Cells adjacent to recent successful hits.
-    std::mt19937 m_rng; ///< Random source for placement and target selection.
+  private:
+    std::vector<Coordinate> m_activeHits; // hits on unsunk ships
+    std::vector<Coordinate> m_huntParity; // (x+y) % 2 == 0, unfired
+    std::vector<Coordinate> m_huntOther;  // (x+y) % 2 == 1, unfired
+    std::vector<std::vector<bool>> m_fired;
+    std::mt19937 m_rng;
 
-    /**
+        /**
      * @brief Adds neighboring cells around a hit coordinate to the priority list.
      * @param center Cell whose neighbors should be considered.
      */
