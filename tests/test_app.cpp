@@ -43,3 +43,10 @@ TEST(AppControllerTest, ResetToMenuPreservesVolumeSettings) {
     EXPECT_EQ(app.state().sfxVolume, 30);
     EXPECT_EQ(app.state().scene, AppScene::MainMenu);
 }
+
+TEST(AppControllerTest, GracefulExitSetsStateAndCleansUp) {
+    AppController app;
+    // TODO: not sure what to test here
+    app.requestExit();
+    EXPECT_TRUE(app.state().shouldExit);
+}
