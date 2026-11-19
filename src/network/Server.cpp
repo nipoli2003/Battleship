@@ -1,13 +1,12 @@
 #include "network/Server.hpp"
+#include "helpers/Log.hpp"
 #include <iostream>
 #include <random>
 #include <thread>
-#include "helpers/Log.hpp"
 
 void GameServer::run(int port) {
-    sockpp::tcp_acceptor acc;
-    acc.open(sockpp::inet_address(port), 4, SO_REUSEPORT);
-    if (!acc) {
+    m_acceptor.open(sockpp::inet_address(port), 4, SO_REUSEPORT);
+    if (!m_acceptor) {
         // TODO: how to get error
         std::cerr << "[server] error: could not create tcp acceptor\n";
         return;
@@ -15,8 +14,8 @@ void GameServer::run(int port) {
     std::cout << "[server] linstening on port " << port << "\n";
     m_running = true;
 
-    while (true) {
-        auto res = acc.accept();
+    while (m_running) {
+        auto res = m_acceptor.accept();
         if (!res)
             continue;
         std::thread([this, sock = res.release()]() mutable {
@@ -195,7 +194,7 @@ void GameServer::handle_join(ClientPtr client, const std::string &code) {
     std::thread(&GameServer::runSession, this, p0, std::move(client)).detach();
 }
 
-void GameServer::runSession(ClientPtr p0,  ClientPtr p1) {
+void GameServer::runSession(ClientPtr p0, ClientPtr p1) {
     static std::atomic<int> next_session_id{1};
     int sessionId = next_session_id++;
 
@@ -223,8 +222,8 @@ void GameServer::runSession(ClientPtr p0,  ClientPtr p1) {
                 if (!session.isOver()) {
                     // tell the survivor their opponent left
                     sendLine(*clients[other], Protocol::to_json(Protocol::GameOver{
-                        .result = Protocol::UserState::Victory,  // or add an Abandoned state
-                        .message = "Your opponent disconnected. You win by default."}));
+                                                  .result = Protocol::UserState::Victory, // or add an Abandoned state
+                                                  .message = "Your opponent disconnected. You win by default."}));
                 }
                 // then wake the survivor's blocked read
                 clients[other]->socket.shutdown(SHUT_RDWR);
@@ -275,13 +274,13 @@ void GameServer::handleLine(GameSession &session, ClientPtr clients[2], int play
 
     } else if (type == Protocol::FIRE_SHOT) {
         auto msg = Protocol::from_json<Protocol::FireShot>(line);
-        
+
         if (!session.fire(playerIdx, {msg.x, msg.y})) {
             LOG_SRV_WARN("[session] Player ", playerIdx, " invalid shot at (", msg.x, ", ", msg.y, ")");
             sendLine(*clients[playerIdx], Protocol::to_json(Protocol::ServerError{.error = "Invalid shot"}));
             return;
         }
-        
+
         auto snapshot = session.buildSnapshot(playerIdx);
         LOG_SRV_GAME("[session] Player ", playerIdx, " fired at (", msg.x, ", ", msg.y, ") -> ", snapshot.statusMessage);
 
