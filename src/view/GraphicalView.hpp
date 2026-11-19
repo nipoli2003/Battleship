@@ -146,6 +146,10 @@ class GraphicalView : public IView {
      * @brief Renders the exit confirmation modal.
      */
     void renderExitConfirmModal();
+    /**
+     * @brief Renders the difficulty modal when starting a bot game
+     */
+    void renderDifficultyModal();
 
     /**
      * @brief Draws the settings trigger button.
@@ -208,6 +212,10 @@ class GraphicalView : public IView {
 
     // --- Exit confirmation (main thread only) ---
     bool m_showExitConfirm{false}; ///< Whether the exit confirmation box is visible.
+
+    // --- Bot difficulty selection (main thread only) ---
+    bool m_showDifficultyModal{false};
+    bool m_difficultyModalJustOpened{false}; // ignore the click that opened the modal
 
     // --- Lobby input (main thread only) ---
     bool m_isCreating{true}; ///< Whether the user is creating a lobby.

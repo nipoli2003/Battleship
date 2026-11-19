@@ -194,13 +194,13 @@ void AppController::setSFXVolume(int volume) {
     AudioManager::instance().setSFXVolume(volume / 100.0f);
 }
 
-void AppController::startLocalBotMatch() {
+void AppController::startLocalBotMatch(BotDifficulty difficulty) {
     if (m_net) {
         m_net->disconnect();
         m_net.reset();
     }
     m_mode = Mode::Local;
-    m_localMatch = std::make_unique<LocalMatch>(0);
+    m_localMatch = std::make_unique<LocalMatch>(0, difficulty);
     m_localMatch->start();
 
     const int music = m_state.musicVolume;
