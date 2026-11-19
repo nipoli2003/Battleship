@@ -2,6 +2,7 @@ build/
 bin/
 lib/
 .cache/
+docs/
 .DS_Store
 compile_commands.json
 .vscode/*
