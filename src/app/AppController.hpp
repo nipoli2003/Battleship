@@ -85,7 +85,7 @@ class AppController {
     /**
      * @brief Starts a local match against a bot.
      */
-    void startLocalBotMatch();
+    void startLocalBotMatch(BotDifficulty difficulty);
 
     /**
      * @brief Requests the app to shut down.

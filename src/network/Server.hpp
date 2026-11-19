@@ -6,7 +6,7 @@
 #pragma once
 
 #include "network/GameSession.hpp"
-#include <chrono>
+#include <atomic>
 #include <memory>
 #include <mutex>
 #include <sockpp/tcp_acceptor.h>
@@ -39,27 +39,31 @@ class GameServer {
      */
     void run(int port);
 
+    /**
+     * @brief stops the server cleanly
+     * used for testing
+     */
+    void stop();
+
   private:
     /**
      * @brief Client connection state tracked by the server.
      */
     struct Client {
         sockpp::tcp_socket socket; ///< Active client socket.
-        std::mutex write_mutex;   ///< Serializes outbound writes to this socket.
+        std::mutex write_mutex;    ///< Serializes outbound writes to this socket.
     };
 
     using ClientPtr = std::shared_ptr<Client>; ///< Shared pointer to a connected client.
 
-    /**
-     * @brief Registry entry for an open lobby waiting for a second player.
-     */
-    struct LobbyEntry {
-        ClientPtr socket; ///< Waiting client for the lobby.
-        std::chrono::steady_clock::time_point created_at; ///< Time when the lobby was created.
-    };
+    std::atomic<bool> m_running{false};
+    sockpp::tcp_acceptor m_acceptor;
 
-    std::mutex m_lobby_mutex; ///< Protects the lobby registry.
-    std::unordered_map<std::string, LobbyEntry> m_registry; ///< All currently open lobbies awaiting a match.
+    std::mutex m_clients_mutex;                       //< Mutex for m_all_clients
+    std::vector<std::weak_ptr<Client>> m_all_clients; ///< All connected clients
+
+    std::mutex m_lobby_mutex;                              ///< Protects the lobby registry.
+    std::unordered_map<std::string, ClientPtr> m_registry; ///< All currently open lobbies awaiting a match; contains the waiting client in the lobby
 
     /**
      * @brief Generates a new lobby code.
@@ -87,11 +91,6 @@ class GameServer {
      * @param line Message to send.
      */
     static void sendLine(Client &c, const std::string &line);
-
-    /**
-     * @brief Removes stale lobbies whose lifetime exceeds the TTL.
-     */
-    void reaper();
 
     /**
      * @brief Handles a client connection during the initial handshake phase.

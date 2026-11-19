@@ -21,7 +21,7 @@ class LocalMatch {
      * @brief Creates a local match with a designated human player index.
      * @param humanPlayerIdx Index of the human-controlled player.
      */
-    explicit LocalMatch(int humanPlayerIdx = 0);
+    explicit LocalMatch(int humanPlayerIdx = 0, BotDifficulty difficulty = BotDifficulty::Hard);
 
     /**
      * @brief Starts the match and lets the bot place its fleet.
