@@ -31,10 +31,10 @@ set(SOCKPP_BUILD_SHARED OFF CACHE BOOL "" FORCE)
 set(SOCKPP_BUILD_STATIC ON  CACHE BOOL "" FORCE)
 
 FetchContent_Declare(
-  glaze
-  GIT_REPOSITORY https://github.com/stephenberry/glaze.git
-  GIT_TAG main
-  GIT_SHALLOW TRUE
+    glaze
+    GIT_REPOSITORY https://github.com/stephenberry/glaze.git
+    GIT_TAG v3.6.0  # Pin to a known stable release
+    GIT_SHALLOW TRUE
 )
 
 FetchContent_MakeAvailable(raylib sockpp glaze)
@@ -51,6 +51,17 @@ add_library(battleship_core STATIC
 )
 target_include_directories(battleship_core PUBLIC src)
 target_link_libraries(battleship_core PUBLIC glaze::glaze)
+
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    target_compile_options(battleship_core PRIVATE -fbracket-depth=1024)
+endif()
+
+# Force C++20 and block transitive C++23 elevation
+set_target_properties(battleship_core PROPERTIES
+    CXX_STANDARD 20
+    CXX_STANDARD_REQUIRED ON
+    CXX_EXTENSIONS OFF
+)
 
 # ---------------------------------------------------------
 # Main Game Executable (GUI + Networking client)

@@ -41,4 +41,9 @@ struct GameSnapshot {
     // from its own point of view (-1 = no shot yet)
     int lastShooter{-1}; ///< Index of the last player to fire, or -1 if none.
     AttackResult lastResult{AttackResult::Invalid}; ///< Outcome of the most recent shot.
+
+    int lastAbilityType{-1};
+    int lastAbilityX{-1};
+    int lastAbilityY{-1};
+    int lastAbilityResult{0};
 };

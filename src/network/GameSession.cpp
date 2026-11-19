@@ -1,4 +1,5 @@
 #include "network/GameSession.hpp"
+#include "model/Protocol.hpp"
 
 bool GameSession::placeShips(int playerIdx, const std::vector<Protocol::ShipPlacement> &ships) {
     // translate Protocol::ShipPlacement into what the engine expects
@@ -23,4 +24,12 @@ bool GameSession::placeShips(int playerIdx, const std::vector<Protocol::ShipPlac
 
 bool GameSession::fire(int playerIdx, Coordinate coord) {
     return m_engine.fire(playerIdx, coord);
+}
+
+int GameSession::useAbility(int playerIdx, Protocol::AbilityType ability, Coordinate target, Orientation orientation) {
+    return m_engine.useAbility(playerIdx, ability, target, orientation);
+}
+
+bool GameSession::hasAbility(int playerIdx, Protocol::AbilityType ability) const noexcept {
+    return m_engine.getAbilityCharges(playerIdx, ability);
 }
