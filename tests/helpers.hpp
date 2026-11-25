@@ -8,9 +8,10 @@ struct ServerThread {
     GameServer server;
     std::thread thread;
 
-    explicit ServerThread(int port) {
+    explicit ServerThread(int port, unsigned int lobby_ttl = DEFAULT_LOBBY_TTL_S)
+        : server(lobby_ttl) {
         thread = std::thread([this, port] { server.run(port); });
-        // give the server thread a brief moment to bind port 6534
+        // give the server thread a brief moment to bind port
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
 

@@ -21,7 +21,7 @@ constexpr int BUFFER_SIZE = 4096;
 /**
  * @brief Lifetime of an unjoined lobby before it is expired.
  */
-constexpr int LOBBY_TTL_S = 60;
+constexpr unsigned int DEFAULT_LOBBY_TTL_S = 60;
 
 /**
  * @brief Server that accepts connections, creates lobbies, and runs Battleship matches.
@@ -30,8 +30,9 @@ class GameServer {
   public:
     /**
      * @brief Creates an empty server instance.
+     * @param lobby_ttl Lifetime of an unjoined lobby before it is expired (in seconds). if not set, will use default
      */
-    GameServer() = default;
+    GameServer(unsigned int lobby_ttl = DEFAULT_LOBBY_TTL_S) : m_lobby_ttl(lobby_ttl) {};
 
     /**
      * @brief Starts the server and listens on the specified TCP port.
@@ -64,6 +65,8 @@ class GameServer {
 
     std::mutex m_lobby_mutex;                              ///< Protects the lobby registry.
     std::unordered_map<std::string, ClientPtr> m_registry; ///< All currently open lobbies awaiting a match; contains the waiting client in the lobby
+
+    unsigned int m_lobby_ttl;
 
     /**
      * @brief Generates a new lobby code.
