@@ -6,6 +6,7 @@
 #pragma once
 
 #include "controller/GameState.hpp"
+#include "model/Protocol.hpp"
 #include "model/Board.hpp"
 #include "model/Protocol.hpp"
 
@@ -52,6 +53,13 @@ class BattleshipEngine {
      */
     void finishPlacement();
 
+    // Tactical Abilities
+    int useAbility(int playerIdx, Protocol::AbilityType ability, Coordinate target, Orientation oerientation = Orientation::Horizontal);  // Orientation is for Torpedo
+    [[nodiscard]] int getAbilityCharges(int playerIdx, Protocol::AbilityType ability) const noexcept { return m_abilities[playerIdx][static_cast<int>(ability)]; }
+    [[nodiscard]] std::string getSonarLog(int playerIdx) const { return m_sonarLog[playerIdx]; }
+    [[nodiscard]] std::string getTorpedoLog(int playerIdx) const { return m_torpedoLog[playerIdx]; }
+    [[nodiscard]] std::string getBombingRunLog(int playerIdx) const { return m_bombingRunLog[playerIdx]; }
+
     // Combat phase methods
     /**
      * @brief Resolves a shot by a player for the given target coordinate.
@@ -92,7 +100,19 @@ class BattleshipEngine {
     Protocol::StateUpdate buildPlayerSnapshot(int playerIdx) const;
 
   private:
+    // Returns true if the player has a non-sunk ship of this type
+    bool hasActiveShip(int playerIdx, ShipType type) const;
+
+    int useSonar(int playerIdx, Coordinate target);
+    int fireTorpedo(int playerIdx, Coordinate target, Orientation orientation);
+    int fireBombingRun(int playerIdx, Coordinate target, Orientation orientation);
+
     Board m_boards[2]; ///< Boards for both players.
     bool m_placement_done[2]{false, false}; ///< Placement completion flags for each player.
     GameSnapshot m_snapshot; ///< Current match meta-state.
+
+    int m_abilities[2][Protocol::ABILITY_COUNT]{};
+    std::string m_sonarLog[2];
+    std::string m_torpedoLog[2];
+    std::string m_bombingRunLog[2];
 };

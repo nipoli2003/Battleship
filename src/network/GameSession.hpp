@@ -8,6 +8,7 @@
 
 #include "controller/BattleshipEngine.hpp"
 #include "model/Protocol.hpp"
+#include "model/Ship.hpp"
 
 /**
  * @brief Server-side game state for one match session.
@@ -57,10 +58,14 @@ class GameSession {
      * @brief Builds the state snapshot visible to one player.
      * @param playerIdx Player whose perspective should be encoded.
      * @return Snapshot containing only that player's view of the match.
+     *         enemyBoard masks present ships as Empty
      */
     inline Protocol::StateUpdate buildSnapshot(int playerIdx) const {
         return m_engine.buildPlayerSnapshot(playerIdx);
     }
+
+    int useAbility(int playerIdx, Protocol::AbilityType ability, Coordinate target, Orientation orientation = Orientation::Horizontal);
+    [[nodiscard]] bool hasAbility(int playerIdx, Protocol::AbilityType ability) const noexcept;
 
   private:
     BattleshipEngine m_engine; ///< Core match engine backing this session.
