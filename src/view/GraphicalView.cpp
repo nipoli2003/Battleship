@@ -1060,3 +1060,5 @@ void GraphicalView::renderGameOver(const ClientState& state) {
         if (m_owner) m_owner->resetToMenu();
     }
 }
+
+
