@@ -5,16 +5,18 @@
 #include "helpers/Log.hpp"
 
 void GameServer::run(int port) {
-    m_acceptor.open(sockpp::inet_address(port), 4, SO_REUSEPORT); // Use m_acceptor
-    if (!m_acceptor) {
+    sockpp::tcp_acceptor acc;
+    acc.open(sockpp::inet_address(port), 4, SO_REUSEPORT);
+    if (!acc) {
+        // TODO: how to get error
         std::cerr << "[server] error: could not create tcp acceptor\n";
         return;
     }
-    std::cout << "[server] listening on port " << port << "\n";
+    std::cout << "[server] linstening on port " << port << "\n";
     m_running = true;
 
-    while (m_running) { // Check m_running
-        auto res = m_acceptor.accept();
+    while (true) {
+        auto res = acc.accept();
         if (!res)
             continue;
         std::thread([this, sock = res.release()]() mutable {
@@ -136,18 +138,36 @@ void GameServer::handle_new(ClientPtr client) {
     sendLine(*client, Protocol::to_json(Protocol::LobbyCode{.code = code}));
     LOG_SRV_INFO("[+] Lobby created: ", code);
 
-    // Wait up to TTL seconds without touching the socket
-    std::unique_lock<std::mutex> lock(m_lobby_mutex);
-    m_lobby_cv.wait_for(lock, std::chrono::seconds(LOBBY_TTL_S), [&] {
-        return m_registry.count(code) == 0;
-    });
+    // wait up to TTL seconds for either a disconnect or the lobby to be claimed
+    struct timeval tv{LOBBY_TTL_S, 0};
+    // https://man7.org/linux/man-pages/man2/setsockopt.2.html -> on socket level, set timeout
+    setsockopt(client->socket.handle(), SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
 
-    if (m_registry.count(code)) {
-        // Timed out
-        m_registry.erase(code);
-        sendLine(*client, Protocol::to_json(Protocol::LobbyError{.error = "Lobby expired"}));
+    char buf[64];
+    // NOTE: read() is blocking; this is inefficient because now every lobby has a thread, even when empty
+    // NOTE: a better approach would be to use epoll (Linux) / kqueue (macOS)
+    // NOTE: -> one thread that watches all sockets and only wakes up on activity
+    // NOTE: however, the code would become platform-dependent; I'm too lazy to write different code for every platform, and I have no idea what to use on MS Windows
+    auto res = client->socket.read(buf, sizeof(buf));
+
+    std::lock_guard<std::mutex> lock(m_lobby_mutex);
+    if (!m_registry.count(code))
+        return;
+
+    m_registry.erase(code);
+    if (res && res.value() == 0) {
+        // success but 0 bytes = clean disconnect (FIN received)
+        LOG_SRV_INFO("[-] Lobby ", code, " removed: creator disconnected");
+    } else if (!res && (res.error() == std::errc::resource_unavailable_try_again ||
+                        res.error() == std::errc::operation_would_block)) {
+        // read() failed with EAGAIN/EWOULDBLOCK = timeout
         LOG_SRV_INFO("[-] Lobby ", code, " expired");
+        sendLine(*client, Protocol::to_json(Protocol::LobbyError{.error = "Lobby expired"}));
+    } else {
+        // any other read error
+        LOG_SRV_INFO("[-] Lobby ", code, " removed: read error");
     }
+    // the socket closes immediately on FIN -> fixes #54
 }
 
 void GameServer::handle_join(ClientPtr client, const std::string &code) {
@@ -158,7 +178,6 @@ void GameServer::handle_join(ClientPtr client, const std::string &code) {
         if (it != m_registry.end()) {
             p0 = it->second;
             m_registry.erase(it);
-            m_lobby_cv.notify_all(); // Wake up handle_new
         }
     }
 
@@ -167,6 +186,10 @@ void GameServer::handle_join(ClientPtr client, const std::string &code) {
         sendLine(*client, Protocol::to_json(Protocol::LobbyError{.error = "Lobby not found"}));
         return;
     }
+
+    // clear the TTL timeout set in handle_new, so the game session isn't affected
+    struct timeval tv{0, 0};
+    setsockopt(p0->socket.handle(), SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
 
     LOG_SRV_INFO("[+] Lobby joined: ", code);
     std::thread(&GameServer::runSession, this, p0, std::move(client)).detach();

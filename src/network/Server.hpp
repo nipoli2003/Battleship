@@ -12,7 +12,6 @@
 #include <sockpp/tcp_acceptor.h>
 #include <sockpp/tcp_socket.h>
 #include <unordered_map>
-#include <condition_variable>
 
 /**
  * @brief Maximum size of a network read buffer.
@@ -64,7 +63,6 @@ class GameServer {
     std::vector<std::weak_ptr<Client>> m_all_clients; ///< All connected clients
 
     std::mutex m_lobby_mutex;                              ///< Protects the lobby registry.
-    std::condition_variable m_lobby_cv;
     std::unordered_map<std::string, ClientPtr> m_registry; ///< All currently open lobbies awaiting a match; contains the waiting client in the lobby
 
     /**
