@@ -69,22 +69,21 @@ set_target_properties(battleship_core PROPERTIES
 file(GLOB_RECURSE VIEW_SOURCES "src/view/*.cpp")
 file(GLOB_RECURSE APP_SOURCES  "src/app/*.cpp")
 
-add_executable(battleship
-    src/main.cpp
+add_library(battleship_app STATIC
     src/network/Client.cpp
     ${VIEW_SOURCES}
     ${APP_SOURCES}
 )
 
-target_include_directories(battleship PRIVATE
+target_include_directories(battleship_app PRIVATE
     src
     ${raylib_SOURCE_DIR}/src
 )
 
-target_link_libraries(battleship PRIVATE battleship_core raylib sockpp-static pthread)
+target_link_libraries(battleship_app PUBLIC battleship_core raylib sockpp-static pthread)
 
 if(APPLE)
-    target_link_libraries(battleship PRIVATE
+    target_link_libraries(battleship_app PRIVATE
         "-framework OpenGL"
         "-framework Cocoa"
         "-framework IOKit"
@@ -92,17 +91,22 @@ if(APPLE)
     )
 endif()
 
+add_executable(battleship src/main.cpp)
+target_link_libraries(battleship PRIVATE battleship_app)
+
 # ---------------------------------------------------------
 # Relay Server Executable
 # ---------------------------------------------------------
-add_executable(battleship_server
-    src/main_server.cpp
+add_library(battleship_server_lib STATIC
     src/network/Server.cpp
     src/network/GameSession.cpp
 )
 
-target_include_directories(battleship_server PRIVATE src)
-target_link_libraries(battleship_server PRIVATE battleship_core sockpp-static pthread)
+target_include_directories(battleship_server_lib PUBLIC src)
+target_link_libraries(battleship_server_lib PUBLIC battleship_core sockpp-static pthread)
+
+add_executable(battleship_server src/main_server.cpp)
+target_link_libraries(battleship_server PRIVATE battleship_server_lib)
 
 # ---------------------------------------------------------
 # Unit Testing

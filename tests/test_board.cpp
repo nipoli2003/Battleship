@@ -2,58 +2,76 @@
 #include "model/Board.hpp"
 #include "model/Ship.hpp"
 
-// TEST(BoardTest, PlaceShipWithinBounds) {
-//     Board board;
-//     auto destroyer = std::make_shared<Ship>(ShipType::Destroyer, Orientation::Horizontal);
+TEST(BoardTest, PlaceShipWithinBounds) {
+    Board board;
+    auto destroyer = std::make_shared<Ship>(ShipType::Destroyer, Orientation::Horizontal);
 
-//     EXPECT_TRUE(board.placeShip(destroyer, {0, 0}));
-//     EXPECT_EQ(board.getCell(0, 0), CellState::ShipPresent);
-//     EXPECT_EQ(board.getCell(1, 0), CellState::ShipPresent);
-//     EXPECT_EQ(board.getCell(2, 0), CellState::Empty);
-// }
+    EXPECT_TRUE(board.placeShip(destroyer, {0, 0}));
+    EXPECT_EQ(board.getCell(0, 0), CellState::Destroyer);
+    EXPECT_TRUE(board.hasShipAt(0, 0));
+    EXPECT_EQ(board.getCell(1, 0), CellState::Destroyer);
+    EXPECT_TRUE(board.hasShipAt(1, 0));
+    EXPECT_EQ(board.getCell(2, 0), CellState::Empty);
+    EXPECT_FALSE(board.hasShipAt(2, 0));
+}
 
-// TEST(BoardTest, CannotPlaceShipOutOfBounds) {
-//     Board board;
-//     auto carrier = std::make_shared<Ship>(ShipType::Carrier, Orientation::Horizontal);
+TEST(BoardTest, CannotPlaceShipOutOfBounds) {
+    Board board;
+    auto carrier = std::make_shared<Ship>(ShipType::Carrier, Orientation::Horizontal);
 
-//     EXPECT_FALSE(board.placeShip(carrier, {7, 0}));
-// }
+    EXPECT_FALSE(board.placeShip(carrier, {7, 0}));
+}
 
-// TEST(BoardTest, AttackHitAndSink) {
-//     Board board;
-//     auto destroyer = std::make_shared<Ship>(ShipType::Destroyer, Orientation::Vertical);
-//     ASSERT_TRUE(board.placeShip(destroyer, {3, 3}));
+TEST(BoardTest, AttackHitAndSink) {
+    Board board;
+    auto destroyer = std::make_shared<Ship>(ShipType::Destroyer, Orientation::Vertical);
+    ASSERT_TRUE(board.placeShip(destroyer, {3, 3}));
 
-//     EXPECT_EQ(board.receiveAttack({3, 3}), AttackResult::Hit);
-//     EXPECT_FALSE(destroyer->isSunk());
+    EXPECT_EQ(board.receiveAttack({3, 3}), AttackResult::Hit);
+    EXPECT_FALSE(destroyer->isSunk());
 
-//     EXPECT_EQ(board.receiveAttack({3, 4}), AttackResult::Sunk);
-//     EXPECT_TRUE(destroyer->isSunk());
-//     EXPECT_TRUE(board.allShipsSunk());
-// }
+    EXPECT_EQ(board.receiveAttack({3, 4}), AttackResult::Sunk);
+    EXPECT_TRUE(destroyer->isSunk());
+    EXPECT_TRUE(board.allShipsSunk());
+}
 
-// TEST(BoardTest, AttackMissAndDuplicate) {
-//     Board board;
-//     EXPECT_EQ(board.receiveAttack({5, 5}), AttackResult::Miss);
-//     EXPECT_EQ(board.getCell(5, 5), CellState::Miss);
+TEST(BoardTest, AttackMissAndDuplicate) {
+    Board board;
+    EXPECT_EQ(board.receiveAttack({5, 5}), AttackResult::Miss);
+    EXPECT_EQ(board.getCell(5, 5), CellState::Miss);
 
-//     EXPECT_EQ(board.receiveAttack({5, 5}), AttackResult::Invalid);
-// }
+    EXPECT_EQ(board.receiveAttack({5, 5}), AttackResult::Invalid);
+}
 
-// TEST(AITest, RandomShipPlacementValid) {
-//     Board board;
-//     BattleshipAI::placeShipsRandomly(board);
+TEST(BoardTest, RandomShipPlacementValid) {
+    Board board;
+    board.generateRandomFleet();
 
-//     int occupiedCount = 0;
-//     for (int y = 0; y < Board::SIZE; ++y) {
-//         for (int x = 0; x < Board::SIZE; ++x) {
-//             if (board.getCell(x, y) == CellState::ShipPresent) {
-//                 occupiedCount++;
-//             }
-//         }
-//     }
-//     EXPECT_EQ(occupiedCount, 17);
-// }
+    int occupiedCount = 0;
+    for (int y = 0; y < Board::SIZE; ++y) {
+        for (int x = 0; x < Board::SIZE; ++x) {
+            if (board.getCell(x, y) != CellState::Empty) {
+                occupiedCount++;
+            }
+        }
+    }
+    EXPECT_EQ(occupiedCount, 17);
+}
+
+TEST(BoardTest, CannotPlaceOverlappingShip) {
+    Board board;
+    auto a = std::make_shared<Ship>(ShipType::Destroyer, Orientation::Horizontal);
+    auto b = std::make_shared<Ship>(ShipType::Cruiser,    Orientation::Horizontal);
+    ASSERT_TRUE(board.placeShip(a, {2, 2}));
+    EXPECT_FALSE(board.placeShip(b, {2, 2}));   // overlaps a
+}
+
+TEST(BoardTest, VerticalShipCannotOverflowBottom) {
+    Board board;
+    auto carrier = std::make_shared<Ship>(ShipType::Carrier, Orientation::Vertical);
+    // Carrier length 5, board is 10 tall -> y = 5 is the last valid start
+    EXPECT_FALSE(board.placeShip(carrier, {0, 6}));
+}
 
 // TEST(EngineTest, PlacementPhaseAndTurnProgression) {
 //     BattleshipEngine engine(OpponentType::LocalAI);
