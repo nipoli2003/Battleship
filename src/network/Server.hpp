@@ -6,17 +6,11 @@
 #pragma once
 
 #include "network/GameSession.hpp"
-#include <atomic>
+#include <asio.hpp>
+#include <deque>
 #include <memory>
-#include <mutex>
-#include <sockpp/tcp_acceptor.h>
-#include <sockpp/tcp_socket.h>
 #include <unordered_map>
-
-/**
- * @brief Maximum size of a network read buffer.
- */
-constexpr int BUFFER_SIZE = 4096;
+#include <unordered_set>
 
 /**
  * @brief Lifetime of an unjoined lobby before it is expired.
@@ -29,111 +23,208 @@ constexpr unsigned int DEFAULT_LOBBY_TTL_S = 60;
 class GameServer {
   public:
     /**
-     * @brief Creates an empty server instance.
-     * @param lobby_ttl Lifetime of an unjoined lobby before it is expired (in seconds). if not set, will use default
+     * @brief Creates a server instance with the given lobby expiration timeout.
+     * @param lobby_ttl Lifetime of an unjoined lobby in seconds before expiration.
      */
-    GameServer(unsigned int lobby_ttl = DEFAULT_LOBBY_TTL_S) : m_lobby_ttl(lobby_ttl) {};
+    explicit GameServer(unsigned int lobby_ttl = DEFAULT_LOBBY_TTL_S);
 
     /**
-     * @brief Starts the server and listens on the specified TCP port.
-     * @param port Port to bind and accept incoming connections on.
+     * @brief Destroys the server and stops active I/O operations.
+     */
+    ~GameServer();
+
+    GameServer(const GameServer &) = delete;
+    GameServer &operator=(const GameServer &) = delete;
+
+    /**
+     * @brief Binds to the specified TCP port and runs the I/O event loop.
+     * @param port Port number to listen on.
      */
     void run(int port);
 
     /**
-     * @brief stops the server cleanly
-     * used for testing
+     * @brief Stops the server and closes active connections and lobbies.
      */
     void stop();
 
+    /**
+     * @brief Returns the TCP port bound by the acceptor.
+     * @return Bound port number, or 0 if not yet bound.
+     */
+    int boundPort() const { return m_bound_port; }
+
   private:
     /**
-     * @brief Client connection state tracked by the server.
+     * @brief Connection state and I/O buffers for a connected client.
      */
-    struct Client {
-        sockpp::tcp_socket socket; ///< Active client socket.
-        std::mutex write_mutex;    ///< Serializes outbound writes to this socket.
+    struct Client : std::enable_shared_from_this<Client> {
+        /**
+         * @brief Constructs a client wrapper around an accepted socket.
+         * @param s Connected TCP socket.
+         */
+        explicit Client(asio::ip::tcp::socket s) : socket(std::move(s)) {}
+
+        asio::ip::tcp::socket socket;        ///< Active client socket.
+        asio::streambuf read_buf;            ///< Incoming line-delimited read buffer.
+        std::deque<std::string> write_queue; ///< Queue of outbound lines to write.
+        bool writing = false;                ///< True while an async write is in progress.
+        bool close_after_writes = false;     ///< True to close once queued writes finish.
+
+        /**
+         * @brief Protocol lifecycle states for a client.
+         */
+        enum class State { AwaitingRequest,
+                           InLobby,
+                           InSession,
+                           Closed };
+        State state = State::AwaitingRequest; ///< Current client state.
+
+        std::string lobby_code;                          ///< Active lobby code if in a lobby.
+        int player_idx = -1;                             ///< Player index (0 or 1) in a match.
+        std::unique_ptr<asio::steady_timer> lobby_timer; ///< Expiration timer for a created lobby.
     };
-
-    using ClientPtr = std::shared_ptr<Client>; ///< Shared pointer to a connected client.
-
-    std::atomic<bool> m_running{false};
-    sockpp::tcp_acceptor m_acceptor;
-
-    std::mutex m_clients_mutex;                       //< Mutex for m_all_clients
-    std::vector<std::weak_ptr<Client>> m_all_clients; ///< All connected clients
-
-    std::mutex m_lobby_mutex;                              ///< Protects the lobby registry.
-    std::unordered_map<std::string, ClientPtr> m_registry; ///< All currently open lobbies awaiting a match; contains the waiting client in the lobby
-
-    unsigned int m_lobby_ttl;
+    using ClientPtr = std::shared_ptr<Client>; ///< Shared pointer to a client.
 
     /**
-     * @brief Generates a new lobby code.
-     * @return A unique lobby identifier string.
+     * @brief Active match state between two connected clients.
+     */
+    struct Session {
+        /**
+         * @brief Constructs a session associated with an I/O context.
+         */
+        explicit Session(asio::io_context &) {}
+        int id = 0;           ///< Unique session identifier.
+        GameSession game;     ///< Underlying Battleship game state.
+        ClientPtr clients[2]; ///< Connected players for index 0 and 1.
+        bool over = false;    ///< True once the match has ended.
+    };
+    using SessionPtr = std::shared_ptr<Session>; ///< Shared pointer to a session.
+
+    asio::io_context m_ioc;             ///< Asio I/O execution context.
+    asio::ip::tcp::acceptor m_acceptor; ///< Listener for incoming TCP connections.
+    int m_bound_port = 0;               ///< Actual port bound by the acceptor.
+
+    unsigned int m_lobby_ttl; ///< Lobby timeout in seconds.
+
+    // all below are accessed only from the io thread.
+    std::unordered_map<std::string, ClientPtr> m_registry;      ///< Open lobbies mapped by code.
+    std::unordered_map<Client *, SessionPtr> m_client_sessions; ///< Active session lookup per client.
+    std::unordered_set<ClientPtr> m_all_clients;                ///< All currently tracked clients.
+    int m_next_session_id = 1;                                  ///< Next session ID to assign.
+
+    /**
+     * @brief Generates a random 6-digit lobby code.
+     * @return Generated lobby code string.
      */
     static std::string make_code();
 
     /**
-     * @brief Trims leading and trailing whitespace from a string.
-     * @param s Input string.
-     * @return Trimming result.
+     * @brief Starts an asynchronous accept for the next client connection.
      */
-    static std::string trim(std::string s);
+    void accept_next();
 
     /**
-     * @brief Reads one newline-terminated line from a socket.
-     * @param sock Socket to read from.
-     * @return The next message line received from the client.
+     * @brief Handles completion of an asynchronous accept operation.
+     * @param ec Error code from the accept operation.
+     * @param sock Newly accepted client socket.
      */
-    std::string readLine(sockpp::tcp_socket &sock);
+    void on_accept(asio::error_code ec, asio::ip::tcp::socket sock);
 
     /**
-     * @brief Sends one newline-terminated line to a client.
-     * @param c Client socket to write to.
-     * @param line Message to send.
+     * @brief Starts an asynchronous read until newline for a client.
+     * @param c Target client.
      */
-    static void sendLine(Client &c, const std::string &line);
+    void read_message(ClientPtr c);
 
     /**
-     * @brief Handles a client connection during the initial handshake phase.
-     * @param sock Socket provided by the accept loop.
+     * @brief Handles completion of an asynchronous read operation.
+     * @param c Target client.
+     * @param ec Error code from the read operation.
      */
-    void handle_client(sockpp::tcp_socket sock);
+    void on_read(ClientPtr c, asio::error_code ec);
 
     /**
-     * @brief Handles creation of a new lobby for a first client.
-     * @param client Client who requested a lobby.
+     * @brief Routes a received message line based on client state.
+     * @param c Source client.
+     * @param line Received message line without trailing newline.
      */
-    void handle_new(ClientPtr client);
+    void dispatch_message(ClientPtr c, const std::string &line);
 
     /**
-     * @brief Attempts to join an existing lobby using a code.
-     * @param client Client requesting the join.
-     * @param code Lobby identifier to join.
+     * @brief Handles initial lobby creation or join requests.
+     * @param c Requesting client.
+     * @param line Raw protocol JSON line.
      */
-    void handle_join(ClientPtr client, const std::string &code);
+    void handle_request(ClientPtr c, const std::string &line);
 
     /**
-     * @brief Runs a full match between two clients.
-     * @param p0 First player socket.
-     * @param p1 Second player socket.
+     * @brief Handles messages sent while a client is waiting in a lobby.
+     * @param c Client in lobby state.
+     * @param line Raw protocol JSON line.
      */
-    void runSession(ClientPtr p0, ClientPtr p1);
+    void handle_lobby_message(ClientPtr c, const std::string &line);
 
     /**
-     * @brief Processes one incoming protocol line for a live match.
-     * @param session Active game session.
-     * @param sockets Player sockets for the current match.
-     * @param playerIdx Index of the player who sent the message.
-     * @param line Incoming serialized protocol payload.
+     * @brief Handles in-game actions during an active session.
+     * @param c Client sending the action.
+     * @param line Raw protocol JSON line.
      */
-    void handleLine(GameSession &session, ClientPtr sockets[2], int playerIdx, const std::string &line);
+    void handle_session_message(ClientPtr c, const std::string &line);
 
     /**
-     * @brief Broadcasts the current session state to both players.
-     * @param session Active game session.
-     * @param sockets Player sockets for the current match.
+     * @brief Creates a new lobby and starts its expiration timer.
+     * @param c Client creating the lobby.
      */
-    void pushToAll(GameSession &session, ClientPtr sockets[2]);
+    void handle_create(ClientPtr c);
+
+    /**
+     * @brief Joins an existing lobby and starts a match if valid.
+     * @param c Client joining the lobby.
+     * @param code Target lobby code.
+     */
+    void handle_join(ClientPtr c, const std::string &code);
+
+    /**
+     * @brief Initializes and starts a game session between two players.
+     * @param p0 First player client.
+     * @param p1 Second player client.
+     */
+    void start_session(ClientPtr p0, ClientPtr p1);
+
+    /**
+     * @brief Cleans up lobby or session state when a client disconnects.
+     * @param c Disconnected client.
+     */
+    void handle_disconnect(ClientPtr c);
+
+    /**
+     * @brief Enqueues a newline-terminated message for asynchronous sending.
+     * @param c Destination client.
+     * @param line Message payload without trailing newline.
+     */
+    void send_line(ClientPtr c, std::string line);
+
+    /**
+     * @brief Writes the next queued line to the client socket.
+     * @param c Target client.
+     */
+    void write_next(ClientPtr c);
+
+    /**
+     * @brief Marks a client to close after pending writes finish.
+     * @param c Target client.
+     */
+    void graceful_close(ClientPtr c);
+
+    /**
+     * @brief Immediately closes a client socket and removes it from tracking.
+     * @param c Target client.
+     */
+    void close_client(ClientPtr c);
+
+    /**
+     * @brief Sends current game state snapshots to both players in a session.
+     * @param s Target session.
+     */
+    void push_state(SessionPtr s);
 };
