@@ -2,6 +2,7 @@
 #include "helpers/Log.hpp"
 #include <iostream>
 #include <random>
+#include <poll.h>
 #include <thread>
 
 void GameServer::run(int port) {
@@ -137,34 +138,27 @@ void GameServer::handle_new(ClientPtr client) {
     sendLine(*client, Protocol::to_json(Protocol::LobbyCode{.code = code}));
     LOG_SRV_INFO("[+] Lobby created: ", code);
 
-    // wait up to TTL seconds for either a disconnect or the lobby to be claimed
-    struct timeval tv{LOBBY_TTL_S, 0};
-    // https://man7.org/linux/man-pages/man2/setsockopt.2.html -> on socket level, set timeout
-    setsockopt(client->socket.handle(), SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+    struct pollfd pfd{};
+    pfd.fd = client->socket.handle();
+    pfd.events = POLLIN;
 
-    char buf[64];
-    // NOTE: read() is blocking; this is inefficient because now every lobby has a thread, even when empty
+    // NOTE: poll() is blocking; this is inefficient because now every lobby has a thread, even when empty
     // NOTE: a better approach would be to use epoll (Linux) / kqueue (macOS)
     // NOTE: -> one thread that watches all sockets and only wakes up on activity
     // NOTE: however, the code would become platform-dependent; I'm too lazy to write different code for every platform, and I have no idea what to use on MS Windows
-    auto res = client->socket.read(buf, sizeof(buf));
+    int ret = poll(&pfd, 1, m_lobby_ttl * 1000);
 
     std::lock_guard<std::mutex> lock(m_lobby_mutex);
     if (!m_registry.count(code))
-        return;
+        return; // joiner already claimed it
 
     m_registry.erase(code);
-    if (res && res.value() == 0) {
-        // success but 0 bytes = clean disconnect (FIN received)
-        LOG_SRV_INFO("[-] Lobby ", code, " removed: creator disconnected");
-    } else if (!res && (res.error() == std::errc::resource_unavailable_try_again ||
-                        res.error() == std::errc::operation_would_block)) {
-        // read() failed with EAGAIN/EWOULDBLOCK = timeout
-        LOG_SRV_INFO("[-] Lobby ", code, " expired");
+    if (ret == 0) {
         sendLine(*client, Protocol::to_json(Protocol::LobbyError{.error = "Lobby expired"}));
+        LOG_SRV_INFO("[-] Lobby ", code, " expired");
     } else {
-        // any other read error
-        LOG_SRV_INFO("[-] Lobby ", code, " removed: read error");
+        // ret > 0: socket is readable -> creator disconnected
+        LOG_SRV_INFO("[-] Lobby ", code, " removed: creator disconnected");
     }
     // the socket closes immediately on FIN -> fixes #54
 }
@@ -185,10 +179,6 @@ void GameServer::handle_join(ClientPtr client, const std::string &code) {
         sendLine(*client, Protocol::to_json(Protocol::LobbyError{.error = "Lobby not found"}));
         return;
     }
-
-    // clear the TTL timeout set in handle_new, so the game session isn't affected
-    struct timeval tv{0, 0};
-    setsockopt(p0->socket.handle(), SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
 
     LOG_SRV_INFO("[+] Lobby joined: ", code);
     std::thread(&GameServer::runSession, this, p0, std::move(client)).detach();
@@ -293,11 +283,11 @@ void GameServer::handleLine(GameSession &session, ClientPtr clients[2], int play
             for (int i = 0; i < 2; ++i) {
                 bool won = (i == playerIdx);
                 sendLine(*clients[i], Protocol::to_json(Protocol::GameOver{
-                                        .result = won ? Protocol::UserState::Victory : Protocol::UserState::Defeat,
-                                        .message = won ? "You sank the enemy fleet!" : "Your fleet has been destroyed."}));
+                                          .result = won ? Protocol::UserState::Victory : Protocol::UserState::Defeat,
+                                          .message = won ? "You sank the enemy fleet!" : "Your fleet has been destroyed."}));
             }
         } else {
-            pushToAll(session, clients);            // <-- add this
+            pushToAll(session, clients); // <-- add this
         }
     } else if (type == Protocol::USE_ABILITY) {
         auto msg = Protocol::from_json<Protocol::UseAbility>(line);
@@ -317,11 +307,11 @@ void GameServer::handleLine(GameSession &session, ClientPtr clients[2], int play
         }
 
         // Success — log it. Include the ability name for readability.
-        const char* abilityName = "Unknown";
+        const char *abilityName = "Unknown";
         switch (static_cast<Protocol::AbilityType>(msg.abilityType)) {
-            case Protocol::AbilityType::Sonar:   abilityName = "Sonar";   break;
-            case Protocol::AbilityType::Torpedo: abilityName = "Torpedo"; break;
-            case Protocol::AbilityType::BombingRun: abilityName = "Bombing Run"; break;
+        case Protocol::AbilityType::Sonar:      abilityName = "Sonar"; break;
+        case Protocol::AbilityType::Torpedo:    abilityName = "Torpedo"; break;
+        case Protocol::AbilityType::BombingRun: abilityName = "Bombing Run"; break;
         }
         LOG_SRV_GAME("[session] Player ", playerIdx, " used ", abilityName, " at (", msg.x, ", ", msg.y, ") -> result=", result);
 
