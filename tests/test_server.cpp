@@ -107,7 +107,9 @@ TEST(Server, JoinOwnLobbyRejected) {
     alice.joinLobby(code);
     ev = waitForEvent(alice);
     ASSERT_TRUE(ev.has_value());
-    EXPECT_TRUE(std::holds_alternative<Protocol::LobbyError>(*ev));
+    EXPECT_TRUE(std::holds_alternative<Protocol::ServerError>(*ev));
+    auto error = std::get<Protocol::ServerError>(*ev);
+    EXPECT_EQ(error.error, "Cannot join a lobby while already in one");
 
     // And the lobby should still be joinable by someone else.
     NetworkClient bob;

@@ -202,13 +202,6 @@ void GameServer::handle_join(ClientPtr c, const std::string &code) {
     }
 
     ClientPtr creator = it->second;
-    if (creator == c) {
-        LOG_SRV_WARN("[!] Join failed: cannot join own lobby");
-        send_line(c, Protocol::to_json(Protocol::LobbyError{
-                         .error = "Cannot join your own lobby"}));
-        return;
-    }
-
     m_registry.erase(it);
     if (creator->lobby_timer) {
         creator->lobby_timer->cancel();
@@ -218,9 +211,25 @@ void GameServer::handle_join(ClientPtr c, const std::string &code) {
     start_session(creator, c);
 }
 
-void GameServer::handle_lobby_message(ClientPtr c, const std::string &) {
-    send_line(c, Protocol::to_json(Protocol::ServerError{
-                     .error = "Cannot send messages while in lobby"}));
+void GameServer::handle_lobby_message(ClientPtr c, const std::string &line) {
+    Protocol::MsgType type;
+    try {
+        type = Protocol::peek_type(line);
+    } catch (...) {
+        send_line(c, Protocol::to_json(Protocol::ServerError{.error = "Bad message"}));
+        return;
+    }
+
+    if (type == Protocol::CREATE_LOBBY) {
+        send_line(c, Protocol::to_json(Protocol::ServerError{
+                         .error = "Already in a lobby"}));
+    } else if (type == Protocol::JOIN_LOBBY) {
+        send_line(c, Protocol::to_json(Protocol::ServerError{
+                         .error = "Cannot join a lobby while already in one"}));
+    } else {
+        send_line(c, Protocol::to_json(Protocol::ServerError{
+                         .error = "Unexpected message while in lobby"}));
+    }
 }
 
 void GameServer::start_session(ClientPtr p0, ClientPtr p1) {
