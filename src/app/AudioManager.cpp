@@ -35,7 +35,7 @@ void AudioManager::init() {
     loadSoundSafe(SoundEffect::BombingRun,  "assets/audio/plane_flyby.wav");
 
     // 3. Load all background music tracks
-    loadMusicSafe(MusicTrack::MainTheme,   "assets/audio/main_theme.mp3");
+    loadMusicSafe(MusicTrack::MainTheme,   "assets/audio/waves.mp3");
     loadMusicSafe(MusicTrack::BattleTheme, "assets/audio/battle_theme.mp3");
     loadMusicSafe(MusicTrack::Victory,     "assets/audio/victory.mp3");
     loadMusicSafe(MusicTrack::Defeat,      "assets/audio/defeat.mp3");

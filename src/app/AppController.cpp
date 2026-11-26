@@ -24,6 +24,14 @@ void AppController::run() {
         } else {
             drainNetEvents();
         }
+        if (m_state.scene == AppScene::InGame) {
+            // Play Victory/Defeat themes if game is over, else play main theme
+            if (m_state.serverState == Protocol::UserState::Victory) AudioManager::instance().playMusic(MusicTrack::Victory);
+            else if (m_state.serverState == Protocol::UserState::Defeat) AudioManager::instance().playMusic(MusicTrack::Defeat);
+            else AudioManager::instance().playMusic(MusicTrack::BattleTheme);
+        } else {
+            AudioManager::instance().playMusic(MusicTrack::MainTheme);
+        }
         m_view.render(m_state);
         AudioManager::instance().update();
     }
