@@ -13,7 +13,8 @@ add_executable(unit_tests
 )
 
 add_executable(integration_tests
-    test_connection.cpp
+    test_game.cpp
+    test_server.cpp
 )
 
 target_link_libraries(unit_tests PRIVATE

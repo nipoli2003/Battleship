@@ -37,7 +37,18 @@ FetchContent_Declare(
     GIT_SHALLOW TRUE
 )
 
-FetchContent_MakeAvailable(raylib sockpp glaze)
+FetchContent_Declare(
+    asio
+    GIT_REPOSITORY https://github.com/chriskohlhoff/asio.git
+    GIT_TAG asio-1-30-2
+    GIT_SHALLOW TRUE
+)
+
+FetchContent_MakeAvailable(raylib sockpp glaze asio)
+
+add_library(asio INTERFACE)
+target_include_directories(asio INTERFACE ${asio_SOURCE_DIR}/asio/include)
+target_compile_definitions(asio INTERFACE ASIO_STANDALONE)
 
 # ---------------------------------------------------------
 # Headless Core Library (Model + Controller, shared with tests)
@@ -103,7 +114,7 @@ add_library(battleship_server_lib STATIC
 )
 
 target_include_directories(battleship_server_lib PUBLIC src)
-target_link_libraries(battleship_server_lib PUBLIC battleship_core sockpp-static pthread)
+target_link_libraries(battleship_server_lib PUBLIC battleship_core asio pthread)
 
 add_executable(battleship_server src/main_server.cpp)
 target_link_libraries(battleship_server PRIVATE battleship_server_lib)
