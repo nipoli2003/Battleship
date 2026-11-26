@@ -37,19 +37,18 @@ FetchContent_Declare(
     GIT_SHALLOW TRUE
 )
 
-# Asio has no top-level CMakeLists.txt, so populate manually.
 FetchContent_Declare(
     asio
     GIT_REPOSITORY https://github.com/chriskohlhoff/asio.git
     GIT_TAG asio-1-30-2
     GIT_SHALLOW TRUE
 )
-FetchContent_GetProperties(asio)
-if(NOT asio_POPULATED)
-    FetchContent_Populate(asio)
-endif()
 
-FetchContent_MakeAvailable(raylib sockpp glaze)
+FetchContent_MakeAvailable(raylib sockpp glaze asio)
+
+add_library(asio INTERFACE)
+target_include_directories(asio INTERFACE ${asio_SOURCE_DIR}/asio/include)
+target_compile_definitions(asio INTERFACE ASIO_STANDALONE)
 
 # ---------------------------------------------------------
 # Headless Core Library (Model + Controller, shared with tests)
@@ -114,12 +113,8 @@ add_library(battleship_server_lib STATIC
     src/network/GameSession.cpp
 )
 
-target_include_directories(battleship_server_lib PUBLIC
-    src
-    ${asio_SOURCE_DIR}/asio/include
-)
-target_compile_definitions(battleship_server_lib PUBLIC ASIO_STANDALONE)
-target_link_libraries(battleship_server_lib PUBLIC battleship_core sockpp-static pthread)
+target_include_directories(battleship_server_lib PUBLIC src)
+target_link_libraries(battleship_server_lib PUBLIC battleship_core asio pthread)
 
 add_executable(battleship_server src/main_server.cpp)
 target_link_libraries(battleship_server PRIVATE battleship_server_lib)
