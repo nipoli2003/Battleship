@@ -30,7 +30,8 @@ enum MsgType : int {
     LOBBY_ERROR,
     STATE_UPDATE,
     GAME_OVER,
-    SERVER_ERROR
+    SERVER_ERROR,
+    NAME_ERROR
 };
 
 /**
@@ -63,6 +64,7 @@ inline MsgType peek_type(const std::string &json) {
  */
 struct CreateLobby {
     MsgType type{CREATE_LOBBY}; ///< Message type identifier.
+    std::string name;
 };
 
 /**
@@ -71,6 +73,7 @@ struct CreateLobby {
 struct JoinLobby {
     MsgType type{JOIN_LOBBY}; ///< Message type identifier.
     std::string code;         ///< Lobby code provided by the client.
+    std::string name;
 };
 
 /**
@@ -171,6 +174,8 @@ struct StateUpdate {
     std::string statusMessage;        ///< Human-readable status for the UI.
     std::vector<int> yourBoard;       ///< Board state visible to the player.
     std::vector<int> enemyBoard;      ///< Opponent board state visible to the player.
+    std::string yourName;
+    std::string opponentName;
     std::vector<int> ability_charges; // abilities left for the player
 
     std::vector<std::string> abilityLogs; // side panel helper for ability log
@@ -200,6 +205,8 @@ struct ServerError {
     MsgType type{SERVER_ERROR}; ///< Message type identifier.
     std::string error;          ///< Error description.
 };
+
+struct NameError { MsgType type{NAME_ERROR}; std::string error; };
 
 // Glaze helpers
 /**

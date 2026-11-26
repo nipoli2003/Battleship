@@ -159,6 +159,7 @@ class GraphicalView : public IView {
      * @param y Y position.
      */
     void drawSettingsTriggerButton(float x, float y);
+    void drawRoster(const ClientState& state, int y);
 
     /**
      * @brief Draws an adjustable slider and returns its selected value.
@@ -232,6 +233,8 @@ class GraphicalView : public IView {
     bool m_isCreating{true}; ///< Whether the user is creating a lobby.
     std::string m_ipInput{"127.0.0.1"}; ///< Default IP address entry.
     std::string m_codeInput; ///< Lobby code entry field.
+    std::string m_nameInput;
+    bool m_nameEdited{false};
     int m_activeInputField{0}; ///< Currently focused input field index.
 
     // --- temporary state while placing ---

@@ -3,6 +3,7 @@
 #include <iostream>
 #include <random>
 #include <thread>
+#include "model/PlayerName.hpp"
 
 void GameServer::run(int port) {
     m_acceptor.open(sockpp::inet_address(port), 4, SO_REUSEPORT);
@@ -116,16 +117,19 @@ void GameServer::handle_client(sockpp::tcp_socket sock) {
     }
 
     if (type == Protocol::CREATE_LOBBY) {
-        handle_new(std::move(client));
+        auto msg = Protocol::from_json<Protocol::CreateLobby>(line);
+        handle_new(std::move(client), msg.name);
     } else if (type == Protocol::JOIN_LOBBY) {
         auto msg = Protocol::from_json<Protocol::JoinLobby>(line);
-        handle_join(std::move(client), msg.code);
+        handle_join(std::move(client), msg.code, msg.name);
     } else {
         std::cerr << "[server] unknown message type: " << static_cast<int>(type) << std::endl;
     }
 }
 
-void GameServer::handle_new(ClientPtr client) {
+void GameServer::handle_new(ClientPtr client, const std::string &name) {
+    if (auto err = PlayerName::validate(name)) { sendLine(*client, Protocol::to_json(Protocol::NameError{.error = *err})); return; }
+    client->name = name;
     std::string code;
     {
         std::lock_guard<std::mutex> lock(m_lobby_mutex);
@@ -169,12 +173,18 @@ void GameServer::handle_new(ClientPtr client) {
     // the socket closes immediately on FIN -> fixes #54
 }
 
-void GameServer::handle_join(ClientPtr client, const std::string &code) {
+void GameServer::handle_join(ClientPtr client, const std::string &code, const std::string &name) {
+    if (auto err = PlayerName::validate(name)) { sendLine(*client, Protocol::to_json(Protocol::NameError{.error = *err})); return; }
+    client->name = name;
     ClientPtr p0 = nullptr;
     {
         std::lock_guard<std::mutex> lock(m_lobby_mutex);
         auto it = m_registry.find(code);
         if (it != m_registry.end()) {
+            if (PlayerName::sameName(it->second->name, name)) {
+                sendLine(*client, Protocol::to_json(Protocol::NameError{.error = "The name must be different from the other player's"}));
+                return;
+            }
             p0 = it->second;
             m_registry.erase(it);
         }
@@ -202,6 +212,7 @@ void GameServer::runSession(ClientPtr p0, ClientPtr p1) {
 
     GameSession session;
     ClientPtr clients[2] = {p0, p1};
+    session.setNames(p0->name, p1->name);
 
     sendLine(*clients[0], Protocol::to_json(Protocol::LobbyJoined{.playerIdx = 0}));
     sendLine(*clients[1], Protocol::to_json(Protocol::LobbyJoined{.playerIdx = 1}));

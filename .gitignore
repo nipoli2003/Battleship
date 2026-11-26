@@ -10,3 +10,4 @@ compile_commands.json
 !.vscode/tasks.json
 !.vscode/launch.json
 .VSCodeCounter
+player_name.txt
