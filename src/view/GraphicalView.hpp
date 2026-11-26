@@ -228,6 +228,12 @@ class GraphicalView : public IView {
     bool m_showDifficultyModal{false};
     bool m_difficultyModalJustOpened{false}; // ignore the click that opened the modal
 
+    // --- Rules modal (main thread only) ---
+    bool m_showRulesModal{false};
+    // Renders the rules modal dialog.
+    void renderRulesModal();
+  
+
     // --- Lobby input (main thread only) ---
     bool m_isCreating{true}; ///< Whether the user is creating a lobby.
     std::string m_ipInput{"127.0.0.1"}; ///< Default IP address entry.

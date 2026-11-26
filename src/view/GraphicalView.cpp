@@ -223,6 +223,42 @@ void GraphicalView::renderExitConfirmModal() {
     }
 }
 
+
+void GraphicalView::renderRulesModal() {
+    DrawRectangle(0, 0, VIRTUAL_WIDTH, VIRTUAL_HEIGHT, Color{0, 0, 0, 190});
+    Rectangle r{150, 60, 900, 580};
+    DrawRectangleRec(r, Color{20, 32, 45, 255});
+    DrawRectangleLinesEx(r, 2, SKYBLUE);
+
+    static const char* lines[] = {
+        "RULES",
+        "- Place 5 ships: Carrier(5) Battleship(4) Cruiser(3) Submarine(3) Destroyer(2). R rotates.",
+        "- Click the enemy grid to fire. Hit = fire again, Miss = opponent's turn.",
+        "- Sink the whole enemy fleet to win.",
+        "",
+        "TACTICAL ABILITIES (using one ends your turn; lost if its ship is sunk)",
+        "- Sonar (Destroyer, 1x): counts ships in a 3x3 area.",
+        "- Torpedo (Submarine, 1x): runs along a row/column, stops at first ship. R rotates.",
+        "- Bombing Run (Carrier, 3x): hits 3 cells in a line.",
+    };
+    float y = r.y + 30;
+    for (const char* l : lines) {
+        DrawText(l, (int)r.x + 30, (int)y, 20, RAYWHITE);
+        y += 40;
+    }
+
+    Rectangle btnClose{r.x + (r.width - 160) / 2, r.y + r.height - 65, 160, 40};
+    bool hov = CheckCollisionPointRec(getVirtualMousePosition(), btnClose);
+    drawButton(btnClose, "Close", hov);
+    if ((hov && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) || IsKeyPressed(KEY_ESCAPE)) {
+        playClickQuit();
+        m_showRulesModal = false;
+    }
+}
+
+
+
+
 void GraphicalView::renderDifficultyModal() {
     Vector2 mouse = getVirtualMousePosition();
 
@@ -454,7 +490,7 @@ void GraphicalView::renderMainMenu(const ClientState& state) {
     float by = VIRTUAL_HEIGHT / 2.f - 60.f;
 
     Rectangle btnCreate{bx, by, bw, bh};
-    bool hovCreate = !m_showSettingsModal && !m_showDifficultyModal && CheckCollisionPointRec(mouse, btnCreate);
+    bool hovCreate = !m_showSettingsModal && !m_showDifficultyModal && !m_showRulesModal && CheckCollisionPointRec(mouse, btnCreate);
     drawButton(btnCreate, "Create Lobby", hovCreate);
     if (hovCreate && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
         playClick();
@@ -464,7 +500,7 @@ void GraphicalView::renderMainMenu(const ClientState& state) {
     }
 
     Rectangle btnJoin{bx, by + 65.f, bw, bh};
-    bool hovJoin = !m_showSettingsModal && !m_showDifficultyModal && CheckCollisionPointRec(mouse, btnJoin);
+    bool hovJoin = !m_showSettingsModal && !m_showDifficultyModal && !m_showRulesModal && CheckCollisionPointRec(mouse, btnJoin);
     drawButton(btnJoin, "Join Lobby", hovJoin);
     if (hovJoin && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
         playClick();
@@ -474,7 +510,7 @@ void GraphicalView::renderMainMenu(const ClientState& state) {
     }
 
     Rectangle btnBot{bx, by + 130.f, bw, bh};
-    bool hovBot = !m_showSettingsModal && !m_showDifficultyModal && CheckCollisionPointRec(mouse, btnBot);
+    bool hovBot = !m_showSettingsModal && !m_showDifficultyModal && !m_showRulesModal && CheckCollisionPointRec(mouse, btnBot);
     drawButton(btnBot, "Play vs Bot", hovBot);
     if (hovBot && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
         playClick();
@@ -482,17 +518,27 @@ void GraphicalView::renderMainMenu(const ClientState& state) {
         m_difficultyModalJustOpened = true;
     }
 
-    Rectangle btnExit{(VIRTUAL_WIDTH - bw) / 2.0f, by + 195.0f, bw, bh};
-    bool hovExit = !m_showSettingsModal && !m_showDifficultyModal && CheckCollisionPointRec(mouse, btnExit);
+    Rectangle btnRules{bx, by + 195.f, bw, bh};
+    bool hovRules = !m_showSettingsModal && !m_showDifficultyModal && !m_showRulesModal
+                    && CheckCollisionPointRec(mouse, btnRules);
+    drawButton(btnRules, "How to Play", hovRules);
+    if (hovRules && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+        playClick();
+        m_showRulesModal = true;
+    }
+
+    Rectangle btnExit{(VIRTUAL_WIDTH - bw) / 2.0f, by + 260.0f, bw, bh};
+    bool hovExit = !m_showSettingsModal && !m_showDifficultyModal && !m_showRulesModal && CheckCollisionPointRec(mouse, btnExit);
     drawButton(btnExit, "Exit Game", hovExit);
     if (hovExit && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
         playClickQuit();
         if (m_owner) m_owner->requestExit();
     }
 
-    if (!m_showSettingsModal && !m_showDifficultyModal) {
+    if (!m_showSettingsModal && !m_showDifficultyModal && !m_showRulesModal ) {
         drawSettingsTriggerButton(40.0f, VIRTUAL_HEIGHT - 65.0f);
     }
+    if (m_showRulesModal) renderRulesModal();
 }
 
 void GraphicalView::renderLobbySetup(const ClientState& state) {
