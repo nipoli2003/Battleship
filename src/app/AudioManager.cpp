@@ -23,22 +23,23 @@ void AudioManager::init() {
     });
 
     // 2a. Load standard SFXs (either via loadSoundSafe or loadSoundVariationsSafe)
-    loadSoundSafe(SoundEffect::Hit,         "assets/audio/hit.wav");
-    loadSoundSafe(SoundEffect::Miss,        "assets/audio/miss.wav");
-    loadSoundSafe(SoundEffect::ShipSunk,    "assets/audio/sunk.wav");
-    loadSoundSafe(SoundEffect::ButtonClick, "assets/audio/click.wav");
+    loadSoundSafe(SoundEffect::Hit,             "assets/audio/hit.wav");
+    loadSoundSafe(SoundEffect::Miss,            "assets/audio/miss.wav");
+    loadSoundSafe(SoundEffect::ShipSunk,        "assets/audio/sunk.wav");
+    loadSoundSafe(SoundEffect::ButtonClick,     "assets/audio/click.wav");
     loadSoundSafe(SoundEffect::ButtonClickBack, "assets/audio/clickBack.wav");
     loadSoundSafe(SoundEffect::ButtonClickQuit, "assets/audio/clickQuit.wav");
 
     // 2b. Load SFXs for tactical abilities
-    loadSoundSafe(SoundEffect::Sonar, "assets/audio/sonar.wav");
-    loadSoundSafe(SoundEffect::BombingRun,  "assets/audio/plane_flyby.wav");
+    loadSoundSafe(SoundEffect::Sonar,           "assets/audio/sonar.wav");
+    loadSoundSafe(SoundEffect::BombingRun,      "assets/audio/plane_flyby.wav");
 
     // 3. Load all background music tracks
-    loadMusicSafe(MusicTrack::MainTheme,   "assets/audio/waves.mp3");
-    loadMusicSafe(MusicTrack::BattleTheme, "assets/audio/battle_theme.mp3");
-    loadMusicSafe(MusicTrack::Victory,     "assets/audio/victory.mp3");
-    loadMusicSafe(MusicTrack::Defeat,      "assets/audio/defeat.mp3");
+    loadMusicSafe(MusicTrack::BG,               "assets/audio/waves.mp3");
+    loadMusicSafe(MusicTrack::MainTheme,        "assets/audio/OpeningTitles.mp3");
+    loadMusicSafe(MusicTrack::BattleTheme,      "assets/audio/battle_theme.mp3");
+    loadMusicSafe(MusicTrack::Victory,          "assets/audio/victory.mp3");
+    loadMusicSafe(MusicTrack::Defeat,           "assets/audio/defeat.mp3");
 
     m_initialized = true;
 }

@@ -32,6 +32,7 @@ enum class SoundEffect {
  */
 enum class MusicTrack {
     MainTheme, 
+    BG,
     BattleTheme,
     Victory,    
     Defeat      

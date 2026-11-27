@@ -25,11 +25,13 @@ void AppController::run() {
             drainNetEvents();
         }
         if (m_state.scene == AppScene::InGame) {
-            // Play Victory/Defeat themes if game is over, else play main theme
+            // Play Victory/Defeat themes if game is over, BG if positioning the fleet else play battle theme
             if (m_state.serverState == Protocol::UserState::Victory) AudioManager::instance().playMusic(MusicTrack::Victory);
             else if (m_state.serverState == Protocol::UserState::Defeat) AudioManager::instance().playMusic(MusicTrack::Defeat);
+            else if (m_state.serverState == Protocol::UserState::PlacementPhase) AudioManager::instance().playMusic(MusicTrack::BG);
             else AudioManager::instance().playMusic(MusicTrack::BattleTheme);
-        } else {
+        }
+        else {
             AudioManager::instance().playMusic(MusicTrack::MainTheme);
         }
         m_view.render(m_state);
