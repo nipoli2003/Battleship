@@ -232,7 +232,7 @@ void GraphicalView::renderRulesModal() {
 
     static const char* lines[] = {
         "RULES",
-        "- Place 5 ships: Carrier(5) Battleship(4) Cruiser(3) Submarine(3) Destroyer(2). R rotates.",
+        "- Place 5 ships: Carrier(5) Battleship(4) Cruiser(3) Submarine(3) Destroyer(2).",
         "- Click the enemy grid to fire. Hit = fire again, Miss = opponent's turn.",
         "- Sink the whole enemy fleet to win.",
         "",
@@ -518,22 +518,32 @@ void GraphicalView::renderMainMenu(const ClientState& state) {
         m_difficultyModalJustOpened = true;
     }
 
-    Rectangle btnRules{bx, by + 195.f, bw, bh};
-    bool hovRules = !m_showSettingsModal && !m_showDifficultyModal && !m_showRulesModal
-                    && CheckCollisionPointRec(mouse, btnRules);
-    drawButton(btnRules, "How to Play", hovRules);
-    if (hovRules && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-        playClick();
-        m_showRulesModal = true;
-    }
+    
 
-    Rectangle btnExit{(VIRTUAL_WIDTH - bw) / 2.0f, by + 260.0f, bw, bh};
+    Rectangle btnExit{(VIRTUAL_WIDTH - bw) / 2.0f, by + 195.0f, bw, bh};
     bool hovExit = !m_showSettingsModal && !m_showDifficultyModal && !m_showRulesModal && CheckCollisionPointRec(mouse, btnExit);
     drawButton(btnExit, "Exit Game", hovExit);
     if (hovExit && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
         playClickQuit();
         if (m_owner) m_owner->requestExit();
     }
+
+    if (!m_showSettingsModal && !m_showDifficultyModal && !m_showRulesModal) {
+    drawSettingsTriggerButton(40.0f, VIRTUAL_HEIGHT - 65.0f);
+
+    // "How to Play" link, same style as Settings, placed to its right
+    Rectangle rulesBounds{180.0f, VIRTUAL_HEIGHT - 65.0f, 140.0f, 30.0f};
+    bool hovRules = CheckCollisionPointRec(mouse, rulesBounds);
+    Color c = hovRules ? SKYBLUE : LIGHTGRAY;
+    DrawCircleLines(rulesBounds.x + 12.0f, rulesBounds.y + 15.0f, 9.0f, c);
+    DrawText("?", rulesBounds.x + 8.0f, rulesBounds.y + 7.0f, 16, c);
+    DrawText("How to Play", rulesBounds.x + 28.0f, rulesBounds.y + 6.0f, 18, c);
+    if (hovRules && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+        playClick();
+        m_showRulesModal = true;
+    }
+}
+if (m_showRulesModal) renderRulesModal();
 
     if (!m_showSettingsModal && !m_showDifficultyModal && !m_showRulesModal ) {
         drawSettingsTriggerButton(40.0f, VIRTUAL_HEIGHT - 65.0f);
